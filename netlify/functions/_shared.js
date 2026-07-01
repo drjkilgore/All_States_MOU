@@ -102,5 +102,13 @@ async function sendEmail(msg) {
 
 module.exports = {
   supa, sendEmail, json, preflight, emailShell, btn, BRAND,
-  APP_BASE_URL: (APP_BASE_URL || '').replace(/\/$/, ''),
+  // Always return an absolute URL with an https:// scheme. If APP_BASE_URL was
+  // set without the scheme (e.g. "teach-all-states-mou.netlify.app"), links would
+  // otherwise be treated as relative paths — breaking the status link (404) and
+  // preventing email clients from making the URL clickable.
+  APP_BASE_URL: (function(u){
+    let s = (u || '').trim().replace(/\/+$/, '');
+    if (s && !/^https?:\/\//i.test(s)) s = 'https://' + s;
+    return s;
+  })(APP_BASE_URL),
 };
