@@ -202,10 +202,15 @@ const PRICE_FIELDS = [
   {k:'price_prime_addl',     label:'#TEACH Prime Additional Endorsement'},
 ];
 const RECIPIENT_FIELDS = [
-  {k:'district_name',    label:'School / District / Partner name', ph:'e.g., Plymouth-Canton Community Schools'},
-  {k:'district_address', label:'Address',       ph:'Street, City, State ZIP', type:'textarea'},
-  {k:'signer_name',      label:'Authorized signer — printed name', ph:'Full name'},
+  {k:'district_name',    label:'School / District / Partner name', ph:'e.g., Plymouth-Canton Community Schools', req:true},
+  {k:'district_address', label:'Address',       ph:'Street, City, State ZIP', type:'textarea', req:true},
+  {k:'signer_name',      label:'Authorized signer — printed name', ph:'Full name', req:true},
   {k:'signer_title',     label:'Signer title',  ph:'e.g., Superintendent'},
+];
+// Optional on the sender screen: pre-fill the district if #TEACH already knows it.
+const SENDER_DISTRICT_FIELDS = [
+  {k:'district_name',    label:'District / Partner name', ph:'e.g., Plymouth-Canton Community Schools'},
+  {k:'district_address', label:'Address',       ph:'Street, City, State ZIP', type:'textarea'},
 ];
 
 let STATE = { sender:{}, recipient:{}, signature:null, meta:{} };
@@ -400,6 +405,12 @@ function initSender(){
   const fdP = form.querySelector('#fdPrice');
   PRICE_FIELDS.forEach(f=> fdP.appendChild(makeField({...f, money:true},'sender')));
 
+  form.appendChild(el(`<fieldset><legend>District details <span style="color:#64748b;font-weight:600;text-transform:none;letter-spacing:0">(optional)</span></legend>
+    <p class="hint" style="margin:0 0 12px">If you already know the district’s name and address, enter them here to pre-fill the agreement. Leave blank and the district will complete them when they sign.</p>
+    <div id="fdDistrict"></div></fieldset>`));
+  const fdD = form.querySelector('#fdDistrict');
+  SENDER_DISTRICT_FIELDS.forEach(f=> fdD.appendChild(makeField(f,'recipient')));
+
   form.appendChild(el(`
     <fieldset><legend>Send to district</legend>
       <div class="field"><label>Your name (#TEACH)</label><input id="senderName" placeholder="e.g., Dr. Meagan Brown"></div>
@@ -437,7 +448,11 @@ function submitSender(){
       senderName: val('senderName'),
       senderEmail, recipientEmail,
       recipientName: val('recipientName'),
-      senderFields: {...STATE.sender}
+      senderFields: {...STATE.sender},
+      recipientFields: {
+        district_name: STATE.recipient.district_name || '',
+        district_address: STATE.recipient.district_address || ''
+      }
     })
   }).then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{
     overlay(false);
@@ -528,6 +543,8 @@ function renderRecipientForm(j){
 
 function submitSignature(){
   const msg=document.getElementById('signMsg'); msg.className='msg';
+  if(!STATE.recipient.district_name){ return showMsg(msg,'err','Please enter the School / District / Partner name.'); }
+  if(!STATE.recipient.district_address){ return showMsg(msg,'err','Please enter the district address.'); }
   if(!STATE.recipient.signer_name){ return showMsg(msg,'err','Please enter the authorized signer’s printed name.'); }
   if(!STATE.signature){ return showMsg(msg,'err','Please provide your signature.'); }
 
@@ -609,7 +626,8 @@ function initStatus(){
    FORM + SIGNATURE + PREVIEW plumbing
    ===================================================================== */
 function makeField(f, group){
-  const wrap = el(`<div class="field"><label>${esc(f.label)}${f.money?' ($)':''}</label></div>`);
+  const star = f.req ? ' <span style="color:var(--crimson)">*</span>' : '';
+  const wrap = el(`<div class="field"><label>${esc(f.label)}${f.money?' ($)':''}${star}</label></div>`);
   const input = f.type==='textarea'
       ? el(`<textarea rows="2" placeholder="${esc(f.ph||'')}"></textarea>`)
       : el(`<input type="${f.type||'text'}" placeholder="${esc(f.ph||'')}">`);
@@ -622,17 +640,17 @@ function makeField(f, group){
 
 function setupSignature(){
   const canvas=document.getElementById('sigCanvas');
-  const ctx=canvas.getContext('2d');
-  function size(){ const r=canvas.getBoundingClientRect(); canvas.width=r.width*2; canvas.height=r.height*2; ctx.scale(2,2); ctx.lineWidth=2.2; ctx.lineCap='round'; ctx.strokeStyle='#10233c'; }
+  const ctx=canvas && canvas.getContext ? canvas.getContext('2d') : null;
+  function size(){ if(!ctx) return; const r=canvas.getBoundingClientRect(); canvas.width=r.width*2; canvas.height=r.height*2; ctx.scale(2,2); ctx.lineWidth=2.2; ctx.lineCap='round'; ctx.strokeStyle='#10233c'; }
   size();
   let drawing=false, has=false;
   const pos=(e)=>{ const r=canvas.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left,y:t.clientY-r.top}; };
-  const start=(e)=>{ drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); };
-  const move=(e)=>{ if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); has=true; e.preventDefault(); };
+  const start=(e)=>{ if(!ctx)return; drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); };
+  const move=(e)=>{ if(!drawing||!ctx)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); has=true; e.preventDefault(); };
   const end=()=>{ if(!drawing)return; drawing=false; if(has){ STATE.signature={type:'draw',data:canvas.toDataURL('image/png')}; refreshPreview(); validateSign(); } };
   canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
   canvas.addEventListener('touchstart',start); canvas.addEventListener('touchmove',move); canvas.addEventListener('touchend',end);
-  document.getElementById('sigClear').onclick=()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); has=false; STATE.signature=null; refreshPreview(); validateSign(); };
+  document.getElementById('sigClear').onclick=()=>{ if(ctx) ctx.clearRect(0,0,canvas.width,canvas.height); has=false; STATE.signature=null; refreshPreview(); validateSign(); };
 
   // Type mode
   const typeInput=document.getElementById('sigType');
@@ -644,14 +662,15 @@ function setupSignature(){
     const mode=tab.dataset.mode;
     document.getElementById('sigDraw').style.display = mode==='draw'?'block':'none';
     document.getElementById('sigTypeWrap').style.display = mode==='type'?'block':'none';
-    STATE.signature=null; if(mode==='draw'){ size(); ctx.clearRect(0,0,canvas.width,canvas.height); has=false; } else { typeInput.value=''; }
+    STATE.signature=null; if(mode==='draw'){ size(); if(ctx) ctx.clearRect(0,0,canvas.width,canvas.height); has=false; } else { typeInput.value=''; }
     refreshPreview(); validateSign();
   });
 }
 
 function validateSign(){
   const btn=document.getElementById('signBtn'); if(!btn) return;
-  const ok = STATE.recipient.signer_name && STATE.signature && document.getElementById('consent') && document.getElementById('consent').checked;
+  const r=STATE.recipient;
+  const ok = r.district_name && r.district_address && r.signer_name && STATE.signature && document.getElementById('consent') && document.getElementById('consent').checked;
   btn.disabled = !ok;
 }
 
