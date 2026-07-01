@@ -80,29 +80,32 @@
   /* Document preview */
   .docwrap{background:#57657a;border-radius:14px;padding:20px;overflow:auto;max-height:calc(100vh - 120px)}
   @media(max-width:940px){.docwrap{max-height:none}}
-  .paper{background:#fff;color:#141b24;width:816px;max-width:100%;margin:0 auto;padding:64px 70px;font-size:13px;line-height:1.55;box-shadow:0 8px 30px rgba(0,0,0,.25);}
+  .paper{background:#fff;color:#141b24;width:816px;max-width:100%;margin:0 auto;padding:26px 60px 30px;font-size:12.5px;line-height:1.42;box-shadow:0 8px 30px rgba(0,0,0,.25);}
   .paper h1{font-size:19px;color:var(--navy);text-align:center;margin:0 0 2px}
   .paper .sub{text-align:center;color:var(--crimson);font-style:italic;font-size:13px;margin:0 0 4px}
-  .paper .kicker{text-align:center;font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin:0 0 20px}
-  .paper h2{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--navy);padding:6px 12px;border-radius:5px;margin:22px 0 12px}
-  .paper h3{font-size:13.5px;color:var(--navy);margin:16px 0 6px}
-  /* Keep headings, rows, and blocks from being sliced across a page break in the PDF */
-  .paper h2,.paper h3{break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}
-  .paper tr,.paper li,.partybox,.sigblock{break-inside:avoid;page-break-inside:avoid}
-  .paper p{margin:0 0 10px}
-  .paper ul{margin:0 0 10px;padding-left:20px}
-  .paper li{margin:0 0 5px}
-  .paper table{width:100%;border-collapse:collapse;margin:6px 0 14px;font-size:12.5px}
-  .paper th,.paper td{border:1px solid #cdd6e2;padding:7px 10px;text-align:left}
+  .paper .kicker{text-align:center;font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin:0 0 16px}
+  .paper h2{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--navy);padding:5px 12px;border-radius:5px;margin:16px 0 9px}
+  .paper h3{font-size:13px;color:var(--navy);margin:12px 0 5px}
+  /* Page-break control for the PDF */
+  .paper h2,.paper h3{break-inside:avoid;page-break-inside:avoid}
+  .paper tr,.paper li,.partybox,.sigblock,.paper table{break-inside:avoid;page-break-inside:avoid}
+  .pb{display:block;height:0;margin:0;padding:0;break-before:page;page-break-before:always}
+  .paper p{margin:0 0 7px}
+  .paper ul{margin:0 0 7px;padding-left:20px}
+  .paper li{margin:0 0 4px}
+  .paper table{width:100%;border-collapse:collapse;margin:6px 0 10px;font-size:12px}
+  .paper th,.paper td{border:1px solid #cdd6e2;padding:6px 9px;text-align:left}
   .paper th{background:#eef3f9;color:var(--navy)}
+  .paper table.pricetbl{font-size:11px}
+  .paper table.pricetbl th,.paper table.pricetbl td{padding:3.5px 9px}
   .paper .pricecell{text-align:right;font-weight:700;white-space:nowrap}
   .blank{background:#fff3cd;border-bottom:1.5px solid #d9a406;padding:0 6px;font-weight:600;color:#7a5b00;border-radius:2px}
   .filled{border-bottom:1.5px solid var(--navy);padding:0 4px;font-weight:600}
-  .partybox{border:1px solid #cdd6e2;border-radius:8px;padding:12px 14px;margin:8px 0}
-  .sigline{border-top:1.5px solid #33465c;margin-top:34px;padding-top:5px;font-size:11.5px;color:#33465c}
-  .sigimg{height:52px;margin-bottom:-6px}
+  .partybox{border:1px solid #cdd6e2;border-radius:8px;padding:10px 14px;margin:8px 0}
+  .sigline{border-top:1.5px solid #33465c;margin-top:30px;padding-top:5px;font-size:11.5px;color:#33465c}
+  .sigimg{height:50px;margin-bottom:-6px}
   .sigtyped{font-family:'Dancing Script',cursive;font-size:30px;line-height:1;color:#10233c}
-  .foot{text-align:center;color:var(--muted);font-size:10.5px;margin-top:26px;font-style:italic}
+  .foot{text-align:center;color:var(--muted);font-size:10.5px;margin-top:22px;font-style:italic}
   .statuscard{max-width:640px;margin:40px auto;text-align:center}
   .statuscard .big{font-size:46px;margin:6px 0}
   .loading{padding:60px;text-align:center;color:var(--muted)}
@@ -183,7 +186,18 @@
       <div class="help-role">Checking status</div>
       <div class="help-step"><div class="help-num">✓</div><div>
         <h4>Track any agreement</h4>
-        <p>Use the status link in your confirmation email to see whether the district has signed yet.</p></div></div>
+        <p>Use the status link in your confirmation email to see whether the district has signed yet. From that screen (or the top bar) you can click <strong>+ New MOU</strong> to start another one at any time.</p></div></div>
+
+      <div class="help-role">MOU Library</div>
+      <div class="help-step"><div class="help-num">★</div><div>
+        <h4>Find, download &amp; manage every MOU</h4>
+        <p>Click <strong>MOU Library →</strong> on the create screen (or add <strong>?admin</strong> to the web address) and enter your admin code. There you can:</p>
+        <ul style="margin:6px 0 0;padding-left:18px;font-size:13px;color:#4a5c72;line-height:1.5">
+          <li><strong>Search and filter</strong> by district, signer, or status.</li>
+          <li><strong>Download</strong> any signed MOU as a PDF in one click, or grab them all with <strong>Download all signed (ZIP)</strong>.</li>
+          <li><strong>Send Reminder</strong> to re-email the signing link to a district that hasn’t signed, or <strong>Copy link</strong> to share it yourself.</li>
+          <li><strong>Delete</strong> a record (handy for test MOUs). You’ll be offered a chance to download a copy first, and the confirmation stays open so you can download and then delete without starting over.</li>
+        </ul></div></div>
 
       <div class="help-tips">
         <h4>Good to know</h4>
@@ -191,7 +205,8 @@
           <li>The <strong>Send</strong> button needs both your email and the district’s email before it will submit.</li>
           <li>Signing links are private but not password-protected — anyone with the link can sign, so send to the correct address.</li>
           <li>An MOU can only be signed once; after that the link shows “already signed.”</li>
-          <li>To prepare another agreement, finish the current one and click <strong>Prepare another MOU</strong>.</li>
+          <li>Use <strong>+ New MOU</strong> in the top bar (or <strong>Prepare another MOU</strong>) to start a fresh agreement any time.</li>
+          <li>Deleting an MOU is permanent — download a copy first if you might need it.</li>
         </ul>
       </div>
     </div>
@@ -315,6 +330,7 @@ function renderMOU(o){
     <h2>Terms</h2>
     <p><strong>Term.</strong> This Memorandum of Understanding will expire on June 30, 2027.</p>
 
+    <div class="pb"></div>
     <h2>Understandings</h2>
     <p>The parties set forth their understandings under this MOU with respect to certifying teachers as follows:</p>
 
@@ -334,7 +350,7 @@ function renderMOU(o){
 
     <h3>2. Program Fees and Pricing Schedule</h3>
     <p>#T.E.A.C.H. will offer discounted rates to School/District based on the total enrolled in any 12-month period.</p>
-    <table>
+    <table class="pricetbl">
       <tr><th>Standard #T.E.A.C.H. Pricing</th><th style="width:140px">Fee</th></tr>
       <tr><td>Initial Certification</td><td class="pricecell">${money$('price_initial')}</td></tr>
       <tr><td>Additional Endorsement</td><td class="pricecell">${money$('price_addl')}</td></tr>
@@ -345,6 +361,7 @@ function renderMOU(o){
       <tr><td>#T.E.A.C.H. Prime Additional Endorsement</td><td class="pricecell">${money$('price_prime_addl')}</td></tr>
     </table>
 
+    <div class="pb"></div>
     <h3>3. Payment Terms</h3>
     <p>Payment must be made in full in the form of a check or guaranteed by a Purchase Order (PO) at the time of enrollment. Teachers will not have access to the program until payment is received or a Purchase Order is confirmed.</p>
 
@@ -365,6 +382,9 @@ function renderMOU(o){
       <li><strong>Residency Experience.</strong> While working as a full-time teacher, candidates will be assigned an Instructional Coach by #T.E.A.C.H. to help them understand the demands of the teaching profession and to provide support and guidance.</li>
       <li><strong>Candidate Selection and Enrollment.</strong> School/District will provide registration information on each of its teachers. Before registering, the parties will ensure the teachers meet the qualifications established by the State Department of Education for licensure.</li>
       <li><strong>Expedited Pathway.</strong> #T.E.A.C.H. will evaluate each candidate’s educational background, relevant professional learning, and employment experience to waive coursework and other program requirements to expedite the pathway to certification.</li>
+    </ul>
+    <div class="pb"></div>
+    <ul>
       <li><strong>Mentoring.</strong> School/District agrees to provide intensive coaching and mentoring support to the teacher. “Intensive” means schools/districts do not provide any less supervision or mentorship to new teachers on Initial Teaching Certificates/Licenses than new teachers on Standard Teaching Certificates. The parties will work together to identify the school-based mentor; the School/District Mentor and #T.E.A.C.H. Instructional Coach will communicate at agreed-upon times regarding candidate progress.</li>
       <li><strong>Educator Evaluation.</strong> Teacher candidates will be evaluated by School/District per Michigan Department of Education requirements for new teachers and per School/District policy. School/District will provide #T.E.A.C.H. with copies of Educator Evaluations. The #T.E.A.C.H.-assigned Instructional Coach will conduct spring and fall assessments each year a candidate is enrolled.</li>
       <li><strong>Test Preparation.</strong> The parties agree to work cooperatively to assist candidates in preparing for the state required content and/or pedagogy test/exam, including test prep resources (e.g., practice tests, test prep courses) and release time to study prior to examination.</li>
@@ -381,12 +401,13 @@ function renderMOU(o){
     <p><strong>Governing Law.</strong> This Agreement shall be governed by and construed in accordance with the laws of the State of Michigan.</p>
     <p><strong>Entire Agreement.</strong> This MOU constitutes the entire agreement between the parties pertaining to its subject matter and supersedes all prior and contemporaneous agreements, representations, and understandings. No supplement, modification, or amendment shall be binding unless executed in writing by all parties.</p>
 
+    <div class="pb"></div>
     <h2>Signatures</h2>
     <p>IN WITNESS WHEREOF, by their signatures below, the parties have caused this Memorandum of Understanding to be executed and effective as of the Effective Date.</p>
 
-    <div class="sigblock" style="display:flex;gap:26px;flex-wrap:wrap;margin-top:10px">
+    <div class="sigblock" style="display:flex;gap:26px;flex-wrap:wrap;margin-top:40px">
       <div style="flex:1;min-width:240px">
-        <div style="font-weight:700;color:var(--navy);margin-bottom:26px">TEACH-USA, LLC (#T.E.A.C.H.)</div>
+        <div style="font-weight:700;color:var(--navy);margin-bottom:22px">TEACH-USA, LLC (#T.E.A.C.H.)</div>
         <div class="sigtyped" style="font-size:26px">Jessie E. Kilgore, Jr.</div>
         <div class="sigline">Jessie E. Kilgore, Jr., PhD — President/Founder &nbsp; · &nbsp; Date: ${esc(o.meta&&o.meta.senderSignDate || fmtDate(s.effective_date))}</div>
       </div>
@@ -599,12 +620,12 @@ function submitSignature(){
   holder.appendChild(paper); document.body.appendChild(holder);
 
   html2pdf().set({
-    margin:[10,10,12,10],
+    margin:[9,10,9,10],
     filename:'TEACH-MOU-signed.pdf',
     image:{type:'jpeg',quality:0.96},
     html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
     jsPDF:{unit:'mm',format:'letter',orientation:'portrait'},
-    pagebreak:{mode:['css','legacy'], avoid:['h2','h3','tr','.partybox','.sigblock']}
+    pagebreak:{mode:['css','legacy'], before:'.pb', avoid:['tr','.partybox','.sigblock','table']}
   }).from(paper).outputPdf('datauristring').then(uri=>{
     document.body.removeChild(holder);
     const base64 = uri.split(',')[1];
