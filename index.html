@@ -106,6 +106,43 @@
   .sigimg{height:50px;margin-bottom:-6px}
   .sigtyped{font-family:'Dancing Script',cursive;font-size:30px;line-height:1;color:#10233c}
   .foot{text-align:center;color:var(--muted);font-size:10.5px;margin-top:22px;font-style:italic}
+  /* Signature authentication */
+  .authbar{display:flex;align-items:flex-start;gap:10px;background:linear-gradient(90deg,#0b3d73,#12A7E6);color:#fff;border-radius:8px;padding:10px 14px;margin:0 0 16px;font-size:11.5px;line-height:1.45}
+  .authbar.bad{background:linear-gradient(90deg,#7a1010,#c0392b)}
+  .authbar .lock{font-size:16px;line-height:1}
+  .authbar strong{font-size:12.5px;letter-spacing:.02em}
+  .sig-col{flex:1;min-width:240px}
+  .sig-party{font-weight:700;color:var(--navy);margin-bottom:6px;font-size:12px}
+  .sig-rule{border-top:1.5px solid #33465c;margin-top:6px;margin-bottom:5px}
+  .sig-name{font-size:12.5px;font-weight:700;color:#10233c}
+  .sig-detail{font-size:10.5px;color:#4a5c72;line-height:1.5}
+  .sig-esign{font-size:10.5px;color:#0d7a3f;font-weight:600;margin-top:3px}
+  .vchk{display:inline-block;color:#0d9d58;font-weight:700}
+  .sig-foot{text-align:center;margin-top:18px;font-size:10px;color:#5a6a7d;border-top:1px solid #e0e6ee;padding-top:8px}
+  .sig-foot .lock{color:var(--sky)}
+  /* Certificate of completion */
+  .cert{font-size:11px;color:#1a2430}
+  .cert-band{display:flex;align-items:center;gap:8px;background:var(--navy);color:#fff;border-radius:6px;padding:9px 14px;font-size:14px;font-weight:800;letter-spacing:.02em;margin-bottom:14px}
+  .cert-band .lock{font-size:16px}
+  .cert h3.cert-h{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--crimson);margin:16px 0 6px;border-bottom:1px solid #e0e6ee;padding-bottom:3px}
+  .cert table{width:100%;border-collapse:collapse;font-size:10.5px;margin:0}
+  .cert table td,.cert table th{border:1px solid #dbe3ec;padding:5px 8px;text-align:left;vertical-align:top}
+  .cert .cert-meta td:first-child{width:150px;font-weight:700;color:var(--navy);background:#f5f8fb}
+  .cert-signers th{background:#eef3f9;color:var(--navy);font-weight:700}
+  .cert-ok{color:#0d7a3f;font-weight:700}
+  .cert-bad{color:var(--crimson);font-weight:700}
+  .cert-hash{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;word-break:break-all;background:#f5f8fb;border:1px solid #dbe3ec;border-radius:5px;padding:7px 9px;margin:2px 0 6px}
+  .cert-verify{font-size:10.5px;color:var(--sky);word-break:break-all;margin:0 0 6px}
+  .cert-note{font-size:10px;color:#7a8798;line-height:1.45;margin:0}
+  .cert-foot{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:18px;padding-top:10px;border-top:1.5px solid var(--navy);font-size:10.5px;color:var(--navy);font-weight:600}
+  .cert-foot .lock{color:var(--sky)}
+  /* Verify page banner */
+  .verify-banner{max-width:820px;margin:0 auto 18px;border-radius:12px;padding:18px 22px;color:#fff;display:flex;align-items:center;gap:14px}
+  .verify-banner.ok{background:linear-gradient(90deg,#0b6b3a,#0d9d58)}
+  .verify-banner.bad{background:linear-gradient(90deg,#7a1010,#c0392b)}
+  .verify-banner .vb-ico{font-size:34px;line-height:1}
+  .verify-banner h2{margin:0 0 3px;font-size:19px}
+  .verify-banner p{margin:0;font-size:13px;opacity:.95}
   .statuscard{max-width:640px;margin:40px auto;text-align:center}
   .statuscard .big{font-size:46px;margin:6px 0}
   .loading{padding:60px;text-align:center;color:var(--muted)}
@@ -207,6 +244,7 @@
           <li>An MOU can only be signed once; after that the link shows “already signed.”</li>
           <li>Use <strong>+ New MOU</strong> in the top bar (or <strong>Prepare another MOU</strong>) to start a fresh agreement any time.</li>
           <li>Deleting an MOU is permanent — download a copy first if you might need it.</li>
+          <li>Every executed MOU is automatically authenticated with signer timestamps, IP, a Certificate of Completion, and a tamper-evident fingerprint you can re-check at its verification link.</li>
         </ul>
       </div>
     </div>
@@ -227,6 +265,7 @@ const qs = new URLSearchParams(location.search);
 const TOKEN  = qs.get('token');
 const STATUS = qs.get('status');
 const ADMIN  = qs.get('admin');
+const VERIFY = qs.get('verify');
 
 /* ---- US states: 5 #TEACH states first (alpha), then all others (alpha) ---- */
 const TEACH_STATES = ['Alabama','Arizona','Indiana','Michigan','North Carolina'];
@@ -283,6 +322,39 @@ const el = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim()
 const esc = (s)=> (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function money(v){ if(v==null||v==='') return ''; const n=String(v).replace(/[^0-9.]/g,''); if(n==='') return esc(v); return Number(n).toLocaleString('en-US'); }
 function fmtDate(v){ if(!v) return ''; const d=new Date(v+'T00:00:00'); if(isNaN(d)) return esc(v); return d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}); }
+
+/* ---- Signature authentication helpers (shared by signing + verification) ---- */
+function agreementId(id){ return 'TEACH-'+String(id||'').replace(/-/g,'').slice(0,8).toUpperCase(); }
+// Deterministic representation of the executed agreement. MUST be identical at
+// signing time and verification time so the integrity hash matches.
+function canonicalSigned(src){
+  const s=src.senderFields||{}, r=src.recipientFields||{};
+  return [
+    'id='+(src.id||''),
+    'state='+(s.state||''),
+    'effective_date='+(s.effective_date||''),
+    'price_initial='+(s.price_initial||''),
+    'price_addl='+(s.price_addl||''),
+    'price_addl_sped='+(s.price_addl_sped||''),
+    'price_prime_initial='+(s.price_prime_initial||''),
+    'price_prime_addl='+(s.price_prime_addl||''),
+    'district_name='+(r.district_name||''),
+    'district_address='+(r.district_address||''),
+    'signer_name='+(src.signedName||r.signer_name||''),
+    'signer_title='+(src.signedTitle||r.signer_title||''),
+    'signer_email='+(src.signerEmail||''),
+    'signed_at='+(src.signedAt||''),
+    'signed_ip='+(src.signedIp||'')
+  ].join('\n');
+}
+async function sha256hex(str){
+  if(!(window.crypto && crypto.subtle)) return 'unavailable';
+  const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function fmtStamp(iso){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return esc(iso);
+  return d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})+' • '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'}); }
+function auditLabel(ev){ return ({created:'MOU Created',sent:'Sent to District',reminder_sent:'Reminder Sent',viewed:'Document Viewed',signed:'Electronically Signed',completed:'Completed & Sealed'}[ev]||ev); }
 function overlay(on,msg){ document.getElementById('overlay').classList.toggle('show',on); if(msg) document.getElementById('overlayMsg').textContent=msg; }
 function pill(txt,color){ const p=document.getElementById('statusPill'); p.textContent=txt; if(color) p.style.background=color; }
 
@@ -298,6 +370,9 @@ function slot(val, w){ const s = w?`min-width:${w}px;display:inline-block;`:'';
 function renderMOU(o){
   const s=o.sender||{}, r=o.recipient||{}, forPdf=o.forPdf;
   const st = s.state;
+  const a = o.auth || {};                 // signature-authentication context
+  const authed = !!a.signed;
+  const modified = a.status === 'modified';
   const money$ = (k)=> (s[k]!=null && s[k]!=='') ? `$${money(s[k])}` : slot(null,60);
   const sigBlock = o.signature
       ? (o.signature.type==='draw'
@@ -305,8 +380,16 @@ function renderMOU(o){
           : `<div class="sigtyped">${esc(o.signature.text)}</div>`)
       : `<div style="height:44px"></div>`;
 
+  const ribbon = authed ? `<div class="authbar${modified?' bad':''}">
+      <span class="lock">${modified?'⚠':'🔒'}</span>
+      <div>${modified
+        ? `<strong>Authentication Invalid</strong> — This document has been modified since completion. The signatures can no longer be verified.`
+        : `<strong>Digitally Authenticated</strong> — This document was electronically signed and securely authenticated. Any modifications made after completion will invalidate the authentication.`}</div>
+    </div>` : '';
+
   return `
   <div class="paper" id="mouPaper">
+    ${ribbon}
     <h1>MEMORANDUM OF UNDERSTANDING</h1>
     <div class="sub">Teacher Certification Partnership Agreement</div>
     <div class="kicker">TEACH-USA, LLC (#T.E.A.C.H.) · 2025–2027</div>
@@ -405,24 +488,76 @@ function renderMOU(o){
     <h2>Signatures</h2>
     <p>IN WITNESS WHEREOF, by their signatures below, the parties have caused this Memorandum of Understanding to be executed and effective as of the Effective Date.</p>
 
-    <div class="sigblock" style="display:flex;gap:26px;flex-wrap:wrap;margin-top:40px">
-      <div style="flex:1;min-width:240px">
-        <div style="font-weight:700;color:var(--navy);margin-bottom:22px">TEACH-USA, LLC (#T.E.A.C.H.)</div>
+    <div class="sigblock" style="display:flex;gap:26px;flex-wrap:wrap;margin-top:${authed?26:40}px">
+      <div class="sig-col">
+        <div class="sig-party">TEACH-USA, LLC (#T.E.A.C.H.)</div>
         <div class="sigtyped" style="font-size:26px">Jessie E. Kilgore, Jr.</div>
-        <div class="sigline">Jessie E. Kilgore, Jr., PhD — President/Founder &nbsp; · &nbsp; Date: ${esc(o.meta&&o.meta.senderSignDate || fmtDate(s.effective_date))}</div>
+        <div class="sig-rule"></div>
+        <div class="sig-name">${authed?'<span class="vchk">✔</span> ':''}Jessie E. Kilgore, Jr., PhD</div>
+        <div class="sig-detail">President/Founder, TEACH-USA, LLC</div>
+        <div class="sig-detail">Date: ${esc(fmtDate(s.effective_date) || (o.meta&&o.meta.senderSignDate) || '')}</div>
+        ${authed?`<div class="sig-esign">Authorized signatory · applied by #TEACH platform</div>`:''}
       </div>
-      <div style="flex:1;min-width:240px">
-        <div style="font-weight:700;color:var(--navy);margin-bottom:6px">School / District / Partner</div>
-        <div style="font-size:12px;margin-bottom:14px">${slot(r.district_name,160)}</div>
+      <div class="sig-col">
+        <div class="sig-party">School / District / Partner</div>
         ${sigBlock}
-        <div class="sigline">
-          ${slot(r.signer_name,150)}${r.signer_title? ', '+esc(r.signer_title):''}<br>
-          Date: ${esc(o.meta&&o.meta.recipientSignDate || '')}
-        </div>
+        <div class="sig-rule"></div>
+        <div class="sig-name">${authed?'<span class="vchk">✔</span> ':''}${slot(r.signer_name,150)}</div>
+        <div class="sig-detail">${r.signer_title?esc(r.signer_title):'Authorized Signer'}</div>
+        <div class="sig-detail">${esc(r.district_name||'')}</div>
+        <div class="sig-detail">Date: ${esc((a.signedAt? new Date(a.signedAt).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) : (o.meta&&o.meta.recipientSignDate)) || '')}</div>
+        ${authed?`<div class="sig-esign">Electronically signed by ${esc(a.signerName||r.signer_name||'')} ${esc(a.signedDisplay||fmtStamp(a.signedAt))}</div>
+          <div class="sig-detail">${esc(a.signerEmail||'')}</div>
+          <div class="sig-detail">IP address: ${esc(a.ip||'—')}</div>`:''}
       </div>
     </div>
 
-    <div class="foot">MOU — School/District &amp; #T.E.A.C.H. · Teacher Certification Partnership · 2025–2027</div>
+    ${authed
+      ? `<div class="sig-foot"><span class="lock">🔒</span> Electronically Signed &amp; Verified · Powered by the #TEACH Digital Signature Platform</div>`
+      : `<div class="foot">MOU — School/District &amp; #T.E.A.C.H. · Teacher Certification Partnership · 2025–2027</div>`}
+
+    ${authed ? `
+    <div class="pb"></div>
+    <div class="cert">
+      <div class="cert-band"><span class="lock">${modified?'⚠':'🔒'}</span> Certificate of Completion</div>
+      <table class="cert-meta">
+        <tr><td>Document ID</td><td>${esc(a.documentId||'')}</td></tr>
+        <tr><td>Agreement ID</td><td>${esc(agreementId(a.documentId))}</td></tr>
+        <tr><td>Date Created</td><td>${esc(fmtStamp(a.createdAt))}</td></tr>
+        <tr><td>Date Completed</td><td>${esc(a.signedDisplay||fmtStamp(a.signedAt))}</td></tr>
+        <tr><td>Status</td><td>${modified?'<span class="cert-bad">✗ Authentication Invalid — document modified after completion</span>':'<span class="cert-ok">✔ Authenticated &amp; Sealed</span>'}</td></tr>
+      </table>
+      <h3 class="cert-h">Signers</h3>
+      <table class="cert-signers">
+        <tr><th>Party</th><th>Name &amp; Title</th><th>Email</th><th>Signed</th><th>IP Address</th><th>Status</th></tr>
+        <tr>
+          <td>#TEACH</td>
+          <td>Jessie E. Kilgore, Jr., PhD<br><span style="color:#64748b">President/Founder</span></td>
+          <td>${esc(a.senderEmail||'')}</td>
+          <td>${esc(fmtDate(s.effective_date)||'')}</td>
+          <td>Platform-applied</td>
+          <td><span class="cert-ok">✔ Authorized</span></td>
+        </tr>
+        <tr>
+          <td>District</td>
+          <td>${esc(a.signerName||r.signer_name||'')}<br><span style="color:#64748b">${esc(r.signer_title||'Authorized Signer')}</span></td>
+          <td>${esc(a.signerEmail||'')}</td>
+          <td>${esc(a.signedDisplay||fmtStamp(a.signedAt))}</td>
+          <td>${esc(a.ip||'—')}</td>
+          <td>${modified?'<span class="cert-bad">✗ Unverified</span>':'<span class="cert-ok">✔ Verified</span>'}</td>
+        </tr>
+      </table>
+      <h3 class="cert-h">Document Integrity</h3>
+      <p class="cert-hash">SHA-256: ${esc(a.hash||'')}</p>
+      <p class="cert-verify">Independently verify this agreement at:<br>${esc(a.verifyUrl||'')}</p>
+      <p class="cert-note">This agreement is sealed with the SHA-256 fingerprint shown above, computed from the executed agreement and all signature data. Any change to the agreement after completion produces a different fingerprint and causes independent verification to fail.</p>
+      <h3 class="cert-h">Audit Trail</h3>
+      <table class="cert-audit">
+        <tr><th style="width:175px">Timestamp</th><th>Activity</th></tr>
+        ${(a.audit||[]).map(ev=>`<tr><td>${esc(fmtStamp(ev.at))}</td><td><strong>${esc(auditLabel(ev.event))}</strong>${ev.detail?' — '+esc(ev.detail):''}${ev.by?'<br><span style="color:#64748b">by '+esc(ev.by)+(ev.email?' ('+esc(ev.email)+')':'')+(ev.ip?' · IP '+esc(ev.ip):'')+'</span>':''}${ev.to?'<br><span style="color:#64748b">to '+esc(ev.to)+'</span>':''}</td></tr>`).join('')}
+      </table>
+      <div class="cert-foot"><span class="lock">🔒</span> Electronically Signed &amp; Verified · Powered by the #TEACH Digital Signature Platform</div>
+    </div>` : ''}
   </div>`;
 }
 
@@ -431,6 +566,7 @@ function renderMOU(o){
    ===================================================================== */
 if (TOKEN)       initRecipient();
 else if (STATUS) initStatus();
+else if (VERIFY) initVerify();
 else if (ADMIN !== null) initAdmin();
 else             initSender();
 
@@ -542,6 +678,12 @@ function initRecipient(){
       if(!ok){ app.innerHTML = errCard(j.error||'This link is invalid.'); return; }
       STATE.sender = j.senderFields||{};
       STATE.recipient = j.recipientFields||{};
+      STATE.meta.docId = j.id;
+      STATE.meta.recipientEmail = j.recipientEmail;
+      STATE.meta.senderEmail = j.senderEmail;
+      STATE.meta.senderName = j.senderName;
+      STATE.meta.audit = j.audit || [];
+      STATE.meta.createdAt = j.createdAt;
       if(j.status==='signed'){ app.innerHTML = alreadySignedCard(j); return; }
       renderRecipientForm(j);
     }).catch(e=> app.innerHTML = errCard('Network error: '+e.message));
@@ -601,36 +743,73 @@ function renderRecipientForm(j){
   refreshPreview();
 }
 
-function submitSignature(){
+async function submitSignature(){
   const msg=document.getElementById('signMsg'); msg.className='msg';
   if(!STATE.recipient.district_name){ return showMsg(msg,'err','Please enter the School / District / Partner name.'); }
   if(!STATE.recipient.district_address){ return showMsg(msg,'err','Please enter the district address.'); }
   if(!STATE.recipient.signer_name){ return showMsg(msg,'err','Please enter the authorized signer’s printed name.'); }
   if(!STATE.signature){ return showMsg(msg,'err','Please provide your signature.'); }
 
-  STATE.meta.recipientSignDate = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
-  refreshPreview();
+  let holder;
+  try{
+    overlay(true,'Authenticating signature…');
 
-  overlay(true,'Generating your signed PDF…');
-  // Build a clean copy of the paper for PDF (light background, no highlight blanks)
-  const paper = document.getElementById('mouPaper').cloneNode(true);
-  paper.querySelectorAll('.blank').forEach(b=> b.outerHTML = '<span style="border-bottom:1px solid #333;">&nbsp;&nbsp;&nbsp;&nbsp;</span>');
-  const holder = document.createElement('div');
-  holder.style.cssText='position:fixed;left:-9999px;top:0;background:#fff';
-  holder.appendChild(paper); document.body.appendChild(holder);
+    // 1) Capture the signer's IP (same value the server will record)
+    let ip=null;
+    try{ const w=await fetch(`${FN}/whoami`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); const wj=await w.json(); ip=wj.ip||null; }catch(_){}
 
-  html2pdf().set({
-    margin:[9,10,9,10],
-    filename:'TEACH-MOU-signed.pdf',
-    image:{type:'jpeg',quality:0.96},
-    html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
-    jsPDF:{unit:'mm',format:'letter',orientation:'portrait'},
-    pagebreak:{mode:['css','legacy'], before:'.pb', avoid:['tr','.partybox','.sigblock','table']}
-  }).from(paper).outputPdf('datauristring').then(uri=>{
-    document.body.removeChild(holder);
+    // 2) Build the signed record + integrity hash
+    const signedAt = new Date().toISOString();
+    const rec = {
+      id: STATE.meta.docId,
+      senderFields: STATE.sender,
+      recipientFields: STATE.recipient,
+      signedName: STATE.recipient.signer_name,
+      signedTitle: STATE.recipient.signer_title,
+      signerEmail: STATE.meta.recipientEmail,
+      signedAt, signedIp: ip
+    };
+    const hash = await sha256hex(canonicalSigned(rec));
+    const signedDisplay = fmtStamp(signedAt);
+    const verifyUrl = `${location.origin}${location.pathname}?verify=${STATE.meta.docId}`;
+
+    // 3) Assemble the audit trail (existing events + this signing)
+    const audit = (STATE.meta.audit||[]).slice();
+    audit.push({ event:'signed', at:signedAt, by:STATE.recipient.signer_name, title:STATE.recipient.signer_title||null, email:STATE.meta.recipientEmail, ip, detail:'District electronically signed the agreement' });
+    audit.push({ event:'completed', at:signedAt, detail:'All parties signed — agreement fully executed and sealed' });
+
+    const auth = {
+      signed:true, status:'authenticated',
+      documentId: STATE.meta.docId, senderEmail: STATE.meta.senderEmail,
+      signerName: STATE.recipient.signer_name, signerEmail: STATE.meta.recipientEmail,
+      signedAt, signedDisplay, ip, hash, verifyUrl,
+      createdAt: STATE.meta.createdAt, audit
+    };
+
+    // 4) Render the AUTHENTICATED document (ribbon + signature details + certificate) for the PDF
+    overlay(true,'Generating your signed PDF…');
+    const signedHtml = renderMOU({sender:STATE.sender, recipient:STATE.recipient, signature:STATE.signature, meta:STATE.meta, auth});
+    holder = document.createElement('div');
+    holder.style.cssText='position:fixed;left:-9999px;top:0;background:#fff';
+    holder.innerHTML = signedHtml;
+    holder.querySelectorAll('.blank').forEach(b=> b.outerHTML = '<span style="border-bottom:1px solid #333;">&nbsp;&nbsp;&nbsp;&nbsp;</span>');
+    document.body.appendChild(holder);
+    const paper = holder.querySelector('#mouPaper');
+
+    const uri = await html2pdf().set({
+      margin:[9,10,9,10],
+      filename:'TEACH-MOU-signed.pdf',
+      image:{type:'jpeg',quality:0.96},
+      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+      jsPDF:{unit:'mm',format:'letter',orientation:'portrait'},
+      pagebreak:{mode:['css','legacy'], before:'.pb', avoid:['tr','.partybox','.sigblock','table']}
+    }).from(paper).outputPdf('datauristring');
+    document.body.removeChild(holder); holder=null;
     const base64 = uri.split(',')[1];
-    overlay(true,'Emailing signed copies…');
-    return fetch(`${FN}/sign-mou`,{
+
+    // 5) Finalize on the server
+    overlay(true,'Sealing & emailing signed copies…');
+    const res = await fetch(`${FN}/sign-mou`,{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         token:TOKEN,
@@ -638,21 +817,23 @@ function submitSignature(){
         signatureData: STATE.signature.type==='draw'?STATE.signature.data:null,
         signedName:STATE.recipient.signer_name,
         signedTitle:STATE.recipient.signer_title,
+        signedAtIso:signedAt, signerIp:ip, integrityHash:hash, signedDisplay,
         pdfBase64:base64
       })
     });
-  }).then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{
+    const j = await res.json();
     overlay(false);
-    if(!ok){ return showMsg(msg,'err', j.error||'Could not complete signing.'); }
+    if(!res.ok){ return showMsg(msg,'err', j.error||'Could not complete signing.'); }
     pill('Signed ✓','rgba(255,255,255,.12)');
     document.querySelector('.grid').innerHTML = `
       <div class="statuscard card"><div class="bd">
         <div class="big">🎉</div>
         <h2 style="color:var(--navy)">Thank you — the MOU is fully executed</h2>
-        <p style="color:var(--muted)">A signed PDF copy has been emailed to you and to #TEACH.
+        <p style="color:var(--muted)">A signed, authenticated PDF (with Certificate of Completion) has been emailed to you and to #TEACH.
         ${j.warnings&&j.warnings.length? '<br><span style="color:var(--warn)">Note: '+esc(j.warnings.join('; '))+'</span>':''}</p>
+        <p style="margin-top:14px"><a href="${esc(verifyUrl)}">Verify this document →</a></p>
       </div></div>`;
-  }).catch(e=>{ overlay(false); try{document.body.removeChild(holder);}catch(_){}; showMsg(msg,'err','Error: '+e.message); });
+  }catch(e){ overlay(false); try{ if(holder) document.body.removeChild(holder); }catch(_){}; showMsg(msg,'err','Error: '+e.message); }
 }
 
 /* ---------------------------------------------------------------------
@@ -682,6 +863,43 @@ function initStatus(){
           <button class="btn primary" style="max-width:260px;margin:18px auto 0" onclick="location.href=location.pathname">Prepare another MOU</button>
         </div></div>`;
     }).catch(e=> app.innerHTML=errCard('Network error: '+e.message));
+}
+
+/* ---------------------------------------------------------------------
+   VERIFY VIEW — public, independent authentication check by document ID
+   ------------------------------------------------------------------- */
+function initVerify(){
+  pill('Verify Document','rgba(255,255,255,.12)');
+  const app=document.getElementById('app');
+  app.innerHTML = `<div class="loading">Verifying document authenticity…</div>`;
+
+  fetch(`${FN}/verify-mou`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:VERIFY})})
+    .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(async ({ok,j})=>{
+      if(!ok){ app.innerHTML = errCard(j.error||'Could not verify this document.'); return; }
+      // Recompute the integrity hash from the stored record and compare
+      const rec = {
+        id: j.id, senderFields: j.senderFields, recipientFields: j.recipientFields,
+        signedName: j.signedName, signedTitle: j.signedTitle,
+        signerEmail: j.recipientEmail, signedAt: j.signedAt, signedIp: j.signedIp
+      };
+      const recomputed = await sha256hex(canonicalSigned(rec));
+      const valid = j.integrityHash && recomputed === j.integrityHash;
+
+      const auth = {
+        signed:true, status: valid ? 'authenticated' : 'modified',
+        documentId: j.id, senderEmail: j.senderEmail,
+        signerName: j.signedName, signerEmail: j.recipientEmail,
+        signedAt: j.signedAt, signedDisplay: fmtStamp(j.signedAt), ip: j.signedIp,
+        hash: j.integrityHash, verifyUrl: `${location.origin}${location.pathname}?verify=${j.id}`,
+        createdAt: j.createdAt, audit: j.audit||[]
+      };
+
+      const banner = valid
+        ? `<div class="verify-banner ok"><div class="vb-ico">✓</div><div><h2>Document Authenticated</h2><p>This agreement is valid and has not been altered since it was completed. Signatures verified.</p></div></div>`
+        : `<div class="verify-banner bad"><div class="vb-ico">✗</div><div><h2>Authentication Failed</h2><p>This document does not match its original fingerprint — it may have been modified since completion.</p></div></div>`;
+
+      app.innerHTML = `${banner}<div class="docwrap" style="max-height:none">${renderMOU({sender:j.senderFields, recipient:j.recipientFields, signature: j.signedName?{type:'type',text:j.signedName}:null, meta:{}, auth})}</div>`;
+    }).catch(e=> app.innerHTML = errCard('Network error: '+e.message));
 }
 
 /* ---------------------------------------------------------------------
