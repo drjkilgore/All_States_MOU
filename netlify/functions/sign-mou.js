@@ -73,12 +73,19 @@ exports.handler = async (event) => {
      <p style="font-size:12px;color:#7a8798;">Signed ${new Date().toLocaleString('en-US', { timeZone: 'America/Detroit' })} (ET)${ip ? ' · IP ' + ip : ''}.</p>`
   );
 
+  const bodyText = `The Memorandum of Understanding between #TEACH and ${district} has been signed by ${signedName}${signedTitle ? ', ' + signedTitle : ''}.
+
+A PDF copy of the fully executed agreement is attached for your records.
+
+Signed ${new Date().toLocaleString('en-US', { timeZone: 'America/Detroit' })} (ET)${ip ? ' · IP ' + ip : ''}.`;
+
   const results = { recipientEmailed: false, senderEmailed: false, warnings: [] };
 
   try {
     await sendEmail({
       to: rec.recipient_email,
       subject: `Signed: #TEACH MOU with ${district}`,
+      text: bodyText,
       html: bodyHtml('Hello'),
       attachments: [attachment],
     });
@@ -89,6 +96,7 @@ exports.handler = async (event) => {
     await sendEmail({
       to: rec.sender_email,
       subject: `Signed: #TEACH MOU with ${district}`,
+      text: bodyText,
       html: bodyHtml('Hello'),
       attachments: [attachment],
     });

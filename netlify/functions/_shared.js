@@ -15,7 +15,13 @@ function supa() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('Supabase env vars are missing (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).');
   }
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  // Accept URLs even if someone pasted the REST endpoint or left a trailing slash.
+  // supabase-js needs the bare project URL (https://<ref>.supabase.co) and adds
+  // /rest/v1/... itself, so strip any /rest/v1 suffix and trailing slashes.
+  const url = SUPABASE_URL.trim()
+    .replace(/\/rest\/v1\/?$/i, '')
+    .replace(/\/+$/, '');
+  return createClient(url, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
   });
 }
@@ -72,7 +78,12 @@ function emailShell(title, innerHtml) {
 }
 
 function btn(href, label) {
-  return `<a href="${href}" style="display:inline-block;background:${BRAND.crimson};color:#fff;text-decoration:none;font-weight:700;padding:13px 26px;border-radius:8px;font-size:15px;">${label}</a>`;
+  // Table-based "bulletproof" button — renders reliably in Gmail, Apple Mail,
+  // Outlook, and mobile clients (a plain styled <a> can be stripped by some).
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:6px 0;">
+    <tr><td align="center" bgcolor="${BRAND.crimson}" style="border-radius:8px;">
+      <a href="${href}" target="_blank" style="display:inline-block;background:${BRAND.crimson};color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;font-family:Arial,Helvetica,sans-serif;padding:14px 30px;border-radius:8px;">${label}</a>
+    </td></tr></table>`;
 }
 
 async function sendEmail(msg) {

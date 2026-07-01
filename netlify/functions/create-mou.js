@@ -51,6 +51,16 @@ exports.handler = async (event) => {
     await sendEmail({
       to: recipientEmail,
       subject: 'Action needed: #TEACH Memorandum of Understanding (2025–2027) for signature',
+      text: `Hello,
+
+${senderName ? senderName + ' at ' : ''}#TEACH has prepared a Memorandum of Understanding (Teacher Certification Partnership Agreement, 2025-2027) for ${district}.
+
+Please review the agreement, complete the district information, and sign electronically. A signed PDF copy will be emailed to you and to #TEACH automatically.
+
+Review & sign the MOU:
+${signUrl}
+
+TEACH-USA, LLC (#T.E.A.C.H.)`,
       html: emailShell(
         'Your #TEACH partnership agreement is ready',
         `<p style="font-size:15px;line-height:1.6;">Hello,</p>
@@ -78,6 +88,10 @@ exports.handler = async (event) => {
     await sendEmail({
       to: senderEmail,
       subject: `MOU sent to ${district} for signature`,
+      text: `The Memorandum of Understanding has been emailed to ${recipientEmail} for signature. You will receive the fully executed PDF as soon as ${district} signs.
+
+View signing status:
+${statusUrl}`,
       html: emailShell(
         'Your MOU is on its way',
         `<p style="font-size:15px;line-height:1.6;">
