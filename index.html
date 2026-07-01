@@ -189,9 +189,14 @@ const qs = new URLSearchParams(location.search);
 const TOKEN  = qs.get('token');
 const STATUS = qs.get('status');
 
+/* ---- US states: 5 #TEACH states first (alpha), then all others (alpha) ---- */
+const TEACH_STATES = ['Alabama','Arizona','Indiana','Michigan','North Carolina'];
+const ALL_STATES = ['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'];
+const OTHER_STATES = ALL_STATES.filter(s => !TEACH_STATES.includes(s));
+
 /* ---- Field definitions ---- */
 const SENDER_FIELDS = [
-  {k:'state',           label:'State',          ph:'Michigan', hint:'Fills the “State of ___” reference in the Background section.'},
+  {k:'state',           label:'State',          type:'select', teach:TEACH_STATES, other:OTHER_STATES, hint:'Fills the “State of ___” reference in the Background section.'},
   {k:'effective_date',  label:'Effective date', ph:'', type:'date'},
 ];
 const PRICE_FIELDS = [
@@ -628,11 +633,22 @@ function initStatus(){
 function makeField(f, group){
   const star = f.req ? ' <span style="color:var(--crimson)">*</span>' : '';
   const wrap = el(`<div class="field"><label>${esc(f.label)}${f.money?' ($)':''}${star}</label></div>`);
-  const input = f.type==='textarea'
+  let input;
+  if (f.type==='select') {
+    const cur = STATE[group][f.k] || '';
+    const opt = s => `<option${cur===s?' selected':''}>${esc(s)}</option>`;
+    const first = (f.teach||[]).map(opt).join('');
+    const rest  = (f.other||[]).map(opt).join('');
+    input = el(`<select><option value="">Select a state…</option>${first}${rest?`<optgroup label="Other States">${rest}</optgroup>`:''}</select>`);
+    input.value = cur;
+    input.addEventListener('change',()=>{ STATE[group][f.k]=input.value; refreshPreview(); if(group==='recipient') validateSign(); });
+  } else {
+    input = f.type==='textarea'
       ? el(`<textarea rows="2" placeholder="${esc(f.ph||'')}"></textarea>`)
       : el(`<input type="${f.type||'text'}" placeholder="${esc(f.ph||'')}">`);
-  input.value = (STATE[group][f.k]||'');
-  input.addEventListener('input',()=>{ STATE[group][f.k]=input.value; refreshPreview(); if(group==='recipient') validateSign(); });
+    input.value = (STATE[group][f.k]||'');
+    input.addEventListener('input',()=>{ STATE[group][f.k]=input.value; refreshPreview(); if(group==='recipient') validateSign(); });
+  }
   wrap.appendChild(input);
   if(f.hint) wrap.appendChild(el(`<p class="hint" style="margin-top:5px">${esc(f.hint)}</p>`));
   return wrap;
