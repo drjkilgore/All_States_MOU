@@ -1,6 +1,14 @@
 -- =====================================================================
 --  #TEACH MOU e-Sign — Supabase schema
 --  Run this ONCE in: Supabase Dashboard → SQL Editor → New query → Run
+--
+--  ALREADY DEPLOYED an earlier version? Run just this migration block once
+--  to add the new signature-authentication columns to your existing table:
+--
+--    alter table public.mou_documents
+--      add column if not exists audit jsonb not null default '[]'::jsonb,
+--      add column if not exists integrity_hash text;
+--
 -- =====================================================================
 
 create extension if not exists "pgcrypto";
@@ -37,6 +45,10 @@ create table if not exists public.mou_documents (
 
   -- Final rendered PDF (base64, no data: prefix)
   signed_pdf_base64 text,
+
+  -- Signature authentication
+  audit             jsonb not null default '[]'::jsonb,   -- chronological event log
+  integrity_hash    text,                                  -- SHA-256 of the signed record
 
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()
