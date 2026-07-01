@@ -17,7 +17,7 @@ exports.handler = async (event) => {
     return json(401, { error: 'Invalid access code.' });
   }
 
-  const { senderName, senderEmail, recipientEmail, recipientName, senderFields } = body;
+  const { senderName, senderEmail, recipientEmail, recipientName, senderFields, recipientFields } = body;
   if (!senderEmail || !recipientEmail) {
     return json(400, { error: 'Sender email and recipient email are required.' });
   }
@@ -28,6 +28,15 @@ exports.handler = async (event) => {
   let db;
   try { db = supa(); } catch (e) { return json(500, { error: e.message }); }
 
+  // Only keep non-empty pre-filled district values (sender may leave them blank).
+  const prefill = {};
+  if (recipientFields && typeof recipientFields === 'object') {
+    if (recipientFields.district_name && recipientFields.district_name.trim())
+      prefill.district_name = recipientFields.district_name.trim();
+    if (recipientFields.district_address && recipientFields.district_address.trim())
+      prefill.district_address = recipientFields.district_address.trim();
+  }
+
   const { data, error } = await db
     .from('mou_documents')
     .insert({
@@ -35,6 +44,7 @@ exports.handler = async (event) => {
       sender_email: senderEmail,
       recipient_email: recipientEmail,
       sender_fields: senderFields,
+      recipient_fields: prefill,
       status: 'sent',
     })
     .select('id, recipient_token, sender_token')
@@ -44,7 +54,7 @@ exports.handler = async (event) => {
 
   const signUrl   = `${APP_BASE_URL}/index.html?token=${data.recipient_token}`;
   const statusUrl = `${APP_BASE_URL}/index.html?status=${data.sender_token}`;
-  const district  = recipientName || senderFields.district_name || 'your district';
+  const district  = recipientName || prefill.district_name || 'your district';
 
   // Email the district the signing link
   try {
