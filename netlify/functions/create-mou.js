@@ -72,11 +72,7 @@ TEACH-USA, LLC (#T.E.A.C.H.)`,
            Please review the agreement, complete the district information, and sign electronically.
            A signed PDF copy will be emailed to you and to #TEACH automatically.
          </p>
-         <p style="margin:26px 0;">${btn(signUrl, 'Review &amp; Sign the MOU')}</p>
-         <p style="font-size:12px;color:#7a8798;line-height:1.5;">
-           If the button does not work, paste this link into your browser:<br>
-           <span style="color:#12A7E6;word-break:break-all;">${signUrl}</span>
-         </p>`
+         ${btn(signUrl, 'Review &amp; sign the MOU')}`
       ),
     });
   } catch (e) {
@@ -98,7 +94,7 @@ ${statusUrl}`,
            The Memorandum of Understanding has been emailed to <strong>${recipientEmail}</strong> for signature.
            You will receive the fully executed PDF as soon as ${district} signs.
          </p>
-         <p style="margin:22px 0;">${btn(statusUrl, 'View Signing Status')}</p>`
+         ${btn(statusUrl, 'View signing status')}`
       ),
     });
   } catch (e) {

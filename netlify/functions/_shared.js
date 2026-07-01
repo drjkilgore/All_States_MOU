@@ -78,11 +78,15 @@ function emailShell(title, innerHtml) {
 }
 
 function btn(href, label) {
-  // Table-based "bulletproof" button — renders reliably in Gmail, Apple Mail,
-  // Outlook, and mobile clients (a plain styled <a> can be stripped by some).
-  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:6px 0;">
-    <tr><td align="center" bgcolor="${BRAND.crimson}" style="border-radius:8px;">
-      <a href="${href}" target="_blank" style="display:inline-block;background:${BRAND.crimson};color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;font-family:Arial,Helvetica,sans-serif;padding:14px 30px;border-radius:8px;">${label}</a>
+  // Client-proof CTA. Some mail clients and corporate link-security layers rewrite
+  // <a> tags into visible "[url]label" text. Bare URLs, by contrast, are reliably
+  // auto-linkified by every client. So we present the URL as plain text inside a
+  // branded card — it renders as a working link everywhere.
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;">
+    <tr><td align="center" style="border:2px solid ${BRAND.crimson};border-radius:10px;padding:18px 22px;">
+      <div style="font-size:15px;font-weight:700;color:${BRAND.navy};margin-bottom:10px;font-family:Arial,Helvetica,sans-serif;">${label}</div>
+      <div style="font-size:14px;color:${BRAND.sky};word-break:break-all;line-height:1.5;font-family:Arial,Helvetica,sans-serif;">${href}</div>
+      <div style="font-size:12px;color:#7a8798;margin-top:10px;font-family:Arial,Helvetica,sans-serif;">Click or tap the link above to open it.</div>
     </td></tr></table>`;
 }
 
