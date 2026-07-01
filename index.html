@@ -133,6 +133,7 @@
   <div class="logo">#TEACH</div>
   <div class="tag">MOU e-Sign</div>
   <div class="spacer"></div>
+  <button class="help-btn" id="newBtn" type="button" style="display:none">+ New MOU</button>
   <button class="help-btn" id="helpBtn" type="button">How to use</button>
   <div class="pill" id="statusPill">Loading…</div>
 </div>
@@ -242,7 +243,7 @@ let ADMIN_CODE = (function(){ try { return sessionStorage.getItem('teach_admin_c
 let ADMIN_ROWS = [];
 let libFilter = { q:'', status:'all' };
 
-/* ---- Help modal wiring (available in every view) ---- */
+/* ---- Help modal + New MOU button wiring (available in every view) ---- */
 (function(){
   const modal=document.getElementById('helpModal');
   const open=()=>modal.classList.add('show');
@@ -251,7 +252,12 @@ let libFilter = { q:'', status:'all' };
   document.getElementById('helpClose').addEventListener('click',close);
   modal.addEventListener('click',e=>{ if(e.target===modal) close(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape') close(); });
+  // "+ New MOU" returns to a fresh create screen (strip any query params)
+  document.getElementById('newBtn').addEventListener('click',()=>{ location.href = location.pathname; });
 })();
+
+// Reveal the "+ New MOU" top-bar button (used on staff-facing screens, not the district signing view)
+function showNewButton(){ const b=document.getElementById('newBtn'); if(b) b.style.display='inline-block'; }
 
 /* ---- helpers ---- */
 const el = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.childElementCount>1 ? t.content : t.content.firstElementChild;};
@@ -408,6 +414,7 @@ else             initSender();
    ------------------------------------------------------------------- */
 function initSender(){
   pill('New Agreement','rgba(255,255,255,.12)');
+  showNewButton();
   const app = document.getElementById('app');
   app.innerHTML = `
   <div class="grid">
@@ -627,6 +634,7 @@ function submitSignature(){
    STATUS VIEW — sender checks progress
    ------------------------------------------------------------------- */
 function initStatus(){
+  showNewButton();
   const app=document.getElementById('app');
   app.innerHTML = `<div class="loading">Loading status…</div>`;
   fetch(`${FN}/get-mou`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({statusToken:STATUS})})
@@ -646,6 +654,7 @@ function initStatus(){
           ${signed
             ? `<p style="color:var(--ok);font-weight:600">Signed by ${esc(j.signedName||'')}${j.signedTitle?', '+esc(j.signedTitle):''} on ${esc(new Date(j.signedAt).toLocaleString('en-US'))}. A signed PDF was emailed to both parties.</p>`
             : `<p style="color:var(--warn);font-weight:600">The district has not signed yet. The signing link remains active in their inbox.</p>`}
+          <button class="btn primary" style="max-width:260px;margin:18px auto 0" onclick="location.href=location.pathname">Prepare another MOU</button>
         </div></div>`;
     }).catch(e=> app.innerHTML=errCard('Network error: '+e.message));
 }
@@ -655,6 +664,7 @@ function initStatus(){
    ------------------------------------------------------------------- */
 function initAdmin(){
   pill('MOU Library','rgba(255,255,255,.12)');
+  showNewButton();
   if (ADMIN_CODE) loadLibrary(); else renderAdminLogin();
 }
 
