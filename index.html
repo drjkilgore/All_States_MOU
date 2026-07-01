@@ -139,7 +139,7 @@ const RECIPIENT_FIELDS = [
 let STATE = { sender:{}, recipient:{}, signature:null, meta:{} };
 
 /* ---- helpers ---- */
-const el = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstChild;};
+const el = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.childElementCount>1 ? t.content : t.content.firstElementChild;};
 const esc = (s)=> (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function money(v){ if(v==null||v==='') return ''; const n=String(v).replace(/[^0-9.]/g,''); if(n==='') return esc(v); return Number(n).toLocaleString('en-US'); }
 function fmtDate(v){ if(!v) return ''; const d=new Date(v+'T00:00:00'); if(isNaN(d)) return esc(v); return d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}); }
@@ -332,9 +332,11 @@ function initSender(){
 
   // Show access-code field only if the deployment sets SENDER_ACCESS_CODE (we can't read env,
   // so we surface it always-optional; server rejects if required and blank/wrong).
-  document.getElementById('codeWrap').style.display='block';
+  const codeWrap = document.getElementById('codeWrap');
+  if (codeWrap) codeWrap.style.display = 'block';
 
-  document.getElementById('sendBtn').onclick = submitSender;
+  const sendBtn = document.getElementById('sendBtn');
+  if (sendBtn) sendBtn.onclick = submitSender;
   refreshPreview();
 }
 
@@ -352,7 +354,7 @@ function submitSender(){
       senderName: val('senderName'),
       senderEmail, recipientEmail,
       recipientName: val('recipientName'),
-      senderFields: {...STATE.sender, district_name: val('recipientName')?undefined:undefined}
+      senderFields: {...STATE.sender}
     })
   }).then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{
     overlay(false);
