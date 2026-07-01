@@ -1,6 +1,7 @@
-// POST /.netlify/functions/get-mou
-// Body: { token }  (recipient_token) OR { statusToken } (sender_token)
-// Returns only the fields the browser needs — never the tokens/emails of the other party.
+// POST /.netlify/functions/verify-mou
+// Body: { id }  (the document/agreement id — safe to share; used by the ?verify page)
+// Public: returns the signed record's canonical data + stored hash so the browser can
+// independently recompute the integrity hash and confirm the document is unaltered.
 const { supa, json, preflight } = require('./_shared');
 
 exports.handler = async (event) => {
@@ -11,33 +12,29 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); }
   catch { return json(400, { error: 'Invalid JSON' }); }
 
-  const { token, statusToken } = body;
-  if (!token && !statusToken) return json(400, { error: 'A token is required.' });
+  if (!body.id) return json(400, { error: 'A document ID is required.' });
 
   let db;
   try { db = supa(); } catch (e) { return json(500, { error: e.message }); }
 
-  const col = token ? 'recipient_token' : 'sender_token';
-  const val = token || statusToken;
-
   const { data, error } = await db
     .from('mou_documents')
     .select('id, status, sender_name, sender_email, sender_fields, recipient_fields, recipient_email, signed_at, signed_ip, signed_name, signed_title, integrity_hash, audit, created_at')
-    .eq(col, val)
+    .eq('id', body.id)
     .single();
 
-  if (error || !data) return json(404, { error: 'This link is invalid or has expired.' });
+  if (error || !data) return json(404, { error: 'No agreement was found with that ID.' });
+  if (data.status !== 'signed') return json(409, { error: 'This agreement has not been fully executed yet.' });
 
   return json(200, {
     ok: true,
-    role: token ? 'recipient' : 'sender',
     id: data.id,
     status: data.status,
     senderName: data.sender_name,
     senderEmail: data.sender_email,
     senderFields: data.sender_fields || {},
     recipientFields: data.recipient_fields || {},
-    recipientEmail: token ? data.recipient_email : undefined,
+    recipientEmail: data.recipient_email,
     signedAt: data.signed_at,
     signedIp: data.signed_ip,
     signedName: data.signed_name,

@@ -37,6 +37,7 @@ exports.handler = async (event) => {
       prefill.district_address = recipientFields.district_address.trim();
   }
 
+  const nowIso = new Date().toISOString();
   const { data, error } = await db
     .from('mou_documents')
     .insert({
@@ -46,6 +47,10 @@ exports.handler = async (event) => {
       sender_fields: senderFields,
       recipient_fields: prefill,
       status: 'sent',
+      audit: [
+        { event: 'created', at: nowIso, by: senderName || senderEmail, detail: 'MOU prepared by #TEACH' },
+        { event: 'sent', at: nowIso, to: recipientEmail, detail: 'Signing invitation emailed to district' },
+      ],
     })
     .select('id, recipient_token, sender_token')
     .single();

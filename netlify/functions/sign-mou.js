@@ -11,7 +11,8 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); }
   catch { return json(400, { error: 'Invalid JSON' }); }
 
-  const { token, recipientFields, signatureData, signedName, signedTitle, pdfBase64 } = body;
+  const { token, recipientFields, signatureData, signedName, signedTitle, pdfBase64,
+          integrityHash, signedAtIso, signerIp } = body;
   if (!token) return json(400, { error: 'Missing token.' });
   if (!signedName) return json(400, { error: 'A printed name is required to sign.' });
   if (!pdfBase64) return json(400, { error: 'Missing signed document.' });
@@ -22,7 +23,7 @@ exports.handler = async (event) => {
   // Load the record (and guard against double-signing)
   const { data: rec, error: loadErr } = await db
     .from('mou_documents')
-    .select('id, status, sender_email, recipient_email, sender_fields')
+    .select('id, status, sender_email, recipient_email, sender_fields, audit')
     .eq('recipient_token', token)
     .single();
 
@@ -30,8 +31,23 @@ exports.handler = async (event) => {
   if (rec.status === 'signed') return json(409, { error: 'This MOU has already been signed.' });
   if (rec.status === 'voided') return json(409, { error: 'This MOU has been voided.' });
 
-  const ip = (event.headers['x-nf-client-connection-ip'] ||
+  // Prefer the IP captured by /whoami (same value embedded in the certificate);
+  // fall back to the IP observed on this request.
+  const observedIp = (event.headers['x-nf-client-connection-ip'] ||
               event.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const ip = signerIp || observedIp;
+  const signedAt = signedAtIso || new Date().toISOString();
+
+  const audit = Array.isArray(rec.audit) ? rec.audit : [];
+  audit.push({
+    event: 'signed', at: signedAt, by: signedName,
+    title: signedTitle || null, email: rec.recipient_email, ip: ip || null,
+    detail: 'District electronically signed the agreement',
+  });
+  audit.push({
+    event: 'completed', at: signedAt,
+    detail: 'All parties signed — agreement fully executed and sealed',
+  });
 
   const { error: updErr } = await db
     .from('mou_documents')
@@ -42,8 +58,10 @@ exports.handler = async (event) => {
       signed_name: signedName,
       signed_title: signedTitle || null,
       signed_ip: ip || null,
-      signed_at: new Date().toISOString(),
+      signed_at: signedAt,
       signed_pdf_base64: pdfBase64,
+      integrity_hash: integrityHash || null,
+      audit,
     })
     .eq('recipient_token', token);
 

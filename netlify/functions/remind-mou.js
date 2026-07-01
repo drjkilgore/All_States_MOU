@@ -21,7 +21,7 @@ exports.handler = async (event) => {
 
   const { data: rec, error } = await db
     .from('mou_documents')
-    .select('status, recipient_token, recipient_email, sender_name, sender_fields, recipient_fields')
+    .select('status, recipient_token, recipient_email, sender_name, sender_fields, recipient_fields, audit')
     .eq('id', body.id)
     .single();
 
@@ -59,6 +59,13 @@ Thank you,
   } catch (e) {
     return json(502, { error: 'Could not send the reminder email: ' + e.message });
   }
+
+  // Log the reminder in the audit trail (best-effort)
+  try {
+    const audit = Array.isArray(rec.audit) ? rec.audit : [];
+    audit.push({ event: 'reminder_sent', at: new Date().toISOString(), to: rec.recipient_email, detail: 'Reminder email re-sent to district' });
+    await db.from('mou_documents').update({ audit }).eq('id', body.id);
+  } catch (_) { /* non-fatal */ }
 
   return json(200, { ok: true, to: rec.recipient_email });
 };
