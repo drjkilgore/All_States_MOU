@@ -120,6 +120,10 @@
   .libbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line)}
   .libbar input,.libbar select{width:auto}
   .lib-scroll{max-height:calc(100vh - 220px);overflow:auto}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 22px;border-radius:10px;font-size:14px;font-weight:600;box-shadow:0 8px 30px rgba(8,18,33,.35);opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;z-index:80;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.ok{background:#0f7a3f}
+  .toast.err{background:var(--crimson)}
   .lock{font-size:11px;color:var(--muted);font-weight:600}
   .overlay{position:fixed;inset:0;background:rgba(8,18,33,.6);display:none;align-items:center;justify-content:center;z-index:50}
   .overlay.show{display:flex}
@@ -743,12 +747,19 @@ function drawRows(){
   const badge=r=> r.status==='signed'?`<span class="badge ok">Signed</span>`
               : r.status==='voided'?`<span class="badge void">Voided</span>`
               : `<span class="badge wait">Awaiting</span>`;
-  const action=r=> r.status==='signed'
-      ? `<button class="btn primary tiny" data-dl="${r.id}">Download</button>`
-      : `<button class="btn ghost tiny" data-copy="${r.recipient_token}">Copy link</button>`;
+  const actions=r=>{
+    const parts=[];
+    if(r.status==='signed') parts.push(`<button class="btn primary tiny" data-dl="${r.id}">Download</button>`);
+    if(r.status==='sent'){
+      parts.push(`<button class="btn ghost tiny" data-copy="${r.recipient_token}">Copy link</button>`);
+      parts.push(`<button class="btn ghost tiny" data-remind="${r.id}">Send Reminder</button>`);
+    }
+    parts.push(`<button class="btn tiny" style="background:#fbe9e9;color:var(--crimson)" data-del="${r.id}">Delete</button>`);
+    return `<div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${parts.join('')}</div>`;
+  };
   host.innerHTML = `<table class="libt">
     <thead><tr>
-      <th>District / Partner</th><th>State</th><th>Status</th><th>Sent</th><th>Signed</th><th>Signer</th><th style="text-align:right">Action</th>
+      <th>District / Partner</th><th>State</th><th>Status</th><th>Sent</th><th>Signed</th><th>Signer</th><th style="text-align:right">Actions</th>
     </tr></thead>
     <tbody>${rows.map(r=>`<tr>
       <td>${esc(r.district||'—')}<div class="sub">${esc(r.recipient_email||'')}</div></td>
@@ -757,10 +768,12 @@ function drawRows(){
       <td>${d(r.created_at)}</td>
       <td>${d(r.signed_at)}</td>
       <td>${esc(r.signed_name||'—')}${r.signed_title?'<div class="sub">'+esc(r.signed_title)+'</div>':''}</td>
-      <td style="text-align:right">${action(r)}</td>
+      <td style="text-align:right">${actions(r)}</td>
     </tr>`).join('')}</tbody></table>`;
   host.querySelectorAll('[data-dl]').forEach(b=> b.onclick=()=>downloadOne(b.getAttribute('data-dl'), b));
   host.querySelectorAll('[data-copy]').forEach(b=> b.onclick=()=>copyLink(b.getAttribute('data-copy'), b));
+  host.querySelectorAll('[data-remind]').forEach(b=> b.onclick=()=>sendReminder(b.getAttribute('data-remind'), b));
+  host.querySelectorAll('[data-del]').forEach(b=> b.onclick=()=>{ const row=ADMIN_ROWS.find(x=>x.id===b.getAttribute('data-del')); if(row) openDeleteDialog(row); });
 }
 
 function b64toBlob(b64, type='application/pdf'){
@@ -774,14 +787,87 @@ function downloadBlob(blob, filename){
   setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1200);
 }
 
+function toast(msg, kind){
+  let t=document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; document.body.appendChild(t); }
+  t.className='toast '+(kind||'ok'); void t.offsetWidth; t.className='toast '+(kind||'ok')+' show';
+  t.textContent=msg;
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>{ t.className='toast '+(kind||'ok'); }, 3400);
+}
+
+function fetchPdf(id){
+  return fetch(`${FN}/get-signed-pdf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminCode:ADMIN_CODE,id})})
+    .then(r=>r.json().then(j=>{ if(!r.ok) throw new Error(j.error||'Download failed'); return j; }));
+}
+
 function downloadOne(id, btn){
   const old=btn.textContent; btn.textContent='…'; btn.disabled=true;
-  fetch(`${FN}/get-signed-pdf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminCode:ADMIN_CODE,id})})
+  fetchPdf(id).then(j=>{
+    btn.textContent=old; btn.disabled=false;
+    downloadBlob(b64toBlob(j.pdfBase64), j.filename);
+  }).catch(e=>{ btn.textContent=old; btn.disabled=false; toast(e.message||'Could not download.','err'); });
+}
+
+function sendReminder(id, btn){
+  const old=btn.textContent; btn.textContent='Sending…'; btn.disabled=true;
+  fetch(`${FN}/remind-mou`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminCode:ADMIN_CODE,id})})
     .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{
-      btn.textContent=old; btn.disabled=false;
-      if(!ok){ alert(j.error||'Could not download.'); return; }
+      btn.disabled=false; btn.textContent=old;
+      if(!ok){ toast(j.error||'Could not send reminder.','err'); return; }
+      toast('Reminder sent to '+(j.to||'the district')+'.','ok');
+    }).catch(e=>{ btn.disabled=false; btn.textContent=old; toast('Error: '+e.message,'err'); });
+}
+
+function openDeleteDialog(row){
+  const canDownload = row.status==='signed';
+  const modal=document.createElement('div');
+  modal.className='help-modal show';
+  modal.innerHTML=`<div class="help-card" style="max-width:480px">
+    <div class="hh" style="background:var(--crimson)"><h2>Delete this MOU?</h2></div>
+    <div class="hb">
+      <p style="font-size:14px;line-height:1.6;color:#33465c;margin-top:6px">
+        Deleting this agreement will <strong>permanently remove it from the system</strong>.
+        If you may need a copy in the future, we recommend downloading it before proceeding.
+      </p>
+      <div style="background:#f5f8fb;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:14px 0;font-size:13px">
+        <strong>${esc(row.district||'—')}</strong> · ${esc(row.state||'—')}<br>
+        <span style="color:var(--muted)">${row.status==='signed'?('Signed'+(row.signed_at?' '+new Date(row.signed_at).toLocaleDateString('en-US'):'')):'Awaiting signature'}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:9px;margin-top:4px">
+        ${canDownload?`<button class="btn primary" data-act="download">Download &amp; Continue</button>`:''}
+        <button class="btn" style="background:var(--crimson);color:#fff" data-act="delete">Delete Anyway</button>
+        <button class="btn ghost" data-act="cancel">Cancel</button>
+      </div>
+      <div class="msg" data-msg style="margin-top:6px"></div>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  const close=()=>modal.remove();
+  const msg=modal.querySelector('[data-msg]');
+  modal.addEventListener('click',e=>{ if(e.target===modal) close(); });
+
+  const dlBtn=modal.querySelector('[data-act="download"]');
+  if(dlBtn) dlBtn.onclick=()=>{
+    const old=dlBtn.textContent; dlBtn.disabled=true; dlBtn.textContent='Downloading…';
+    fetchPdf(row.id).then(j=>{
       downloadBlob(b64toBlob(j.pdfBase64), j.filename);
-    }).catch(e=>{ btn.textContent=old; btn.disabled=false; alert('Error: '+e.message); });
+      dlBtn.disabled=false; dlBtn.textContent='Downloaded ✓';
+      msg.className='msg ok'; msg.textContent='Downloaded. You can now delete this MOU, or cancel to keep it.';
+    }).catch(e=>{ dlBtn.disabled=false; dlBtn.textContent=old; msg.className='msg err'; msg.textContent='Download failed: '+e.message; });
+  };
+
+  modal.querySelector('[data-act="delete"]').onclick=(e)=>{
+    const btn=e.currentTarget; btn.disabled=true; btn.textContent='Deleting…';
+    fetch(`${FN}/delete-mou`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminCode:ADMIN_CODE,id:row.id})})
+      .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{
+        if(!ok){ btn.disabled=false; btn.textContent='Delete Anyway'; msg.className='msg err'; msg.textContent=j.error||'Delete failed.'; return; }
+        ADMIN_ROWS=ADMIN_ROWS.filter(x=>x.id!==row.id);
+        close(); renderLibrary(); toast('MOU deleted.','ok');
+      }).catch(err=>{ btn.disabled=false; btn.textContent='Delete Anyway'; msg.className='msg err'; msg.textContent='Error: '+err.message; });
+  };
+
+  modal.querySelector('[data-act="cancel"]').onclick=close;
 }
 
 function copyLink(token, btn){
