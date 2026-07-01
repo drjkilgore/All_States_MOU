@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
     --navy:#002E5D; --crimson:#8B0000; --sky:#12A7E6;
@@ -105,6 +106,20 @@
   .statuscard{max-width:640px;margin:40px auto;text-align:center}
   .statuscard .big{font-size:46px;margin:6px 0}
   .loading{padding:60px;text-align:center;color:var(--muted)}
+  /* MOU Library */
+  .libt{width:100%;border-collapse:collapse;font-size:13px}
+  .libt th{text-align:left;background:#f5f8fb;color:var(--navy);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:11px 14px;border-bottom:1px solid var(--line);position:sticky;top:0}
+  .libt td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  .libt tr:hover td{background:#f9fbfd}
+  .libt .sub{font-size:11px;color:var(--muted);margin-top:2px;word-break:break-all}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
+  .badge.ok{background:#e8f6ee;color:#0d7a3f}
+  .badge.wait{background:#fff3cd;color:#8a6d00}
+  .badge.void{background:#fdeaea;color:#9b1c1c}
+  .btn.tiny{width:auto;padding:7px 14px;font-size:12.5px}
+  .libbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line)}
+  .libbar input,.libbar select{width:auto}
+  .lib-scroll{max-height:calc(100vh - 220px);overflow:auto}
   .lock{font-size:11px;color:var(--muted);font-weight:600}
   .overlay{position:fixed;inset:0;background:rgba(8,18,33,.6);display:none;align-items:center;justify-content:center;z-index:50}
   .overlay.show{display:flex}
@@ -191,6 +206,7 @@ const FN = '/.netlify/functions';
 const qs = new URLSearchParams(location.search);
 const TOKEN  = qs.get('token');
 const STATUS = qs.get('status');
+const ADMIN  = qs.get('admin');
 
 /* ---- US states: 5 #TEACH states first (alpha), then all others (alpha) ---- */
 const TEACH_STATES = ['Alabama','Arizona','Indiana','Michigan','North Carolina'];
@@ -222,6 +238,9 @@ const SENDER_DISTRICT_FIELDS = [
 ];
 
 let STATE = { sender:{}, recipient:{}, signature:null, meta:{} };
+let ADMIN_CODE = (function(){ try { return sessionStorage.getItem('teach_admin_code')||''; } catch(_){ return ''; } })();
+let ADMIN_ROWS = [];
+let libFilter = { q:'', status:'all' };
 
 /* ---- Help modal wiring (available in every view) ---- */
 (function(){
@@ -381,6 +400,7 @@ function renderMOU(o){
    ===================================================================== */
 if (TOKEN)       initRecipient();
 else if (STATUS) initStatus();
+else if (ADMIN !== null) initAdmin();
 else             initSender();
 
 /* ---------------------------------------------------------------------
@@ -393,7 +413,7 @@ function initSender(){
   <div class="grid">
     <div class="panel">
       <div class="card">
-        <div class="hd"><h2>Prepare the MOU</h2><p>Complete your portion, then send it to the district to finish and sign.</p></div>
+        <div class="hd" style="display:flex;align-items:flex-start;gap:12px"><div><h2>Prepare the MOU</h2><p>Complete your portion, then send it to the district to finish and sign.</p></div><a href="?admin" style="margin-left:auto;font-size:12.5px;font-weight:600;white-space:nowrap">MOU Library →</a></div>
         <div class="bd">
           <div id="gate"></div>
           <div id="senderForm"></div>
@@ -630,9 +650,157 @@ function initStatus(){
     }).catch(e=> app.innerHTML=errCard('Network error: '+e.message));
 }
 
-/* =====================================================================
-   FORM + SIGNATURE + PREVIEW plumbing
-   ===================================================================== */
+/* ---------------------------------------------------------------------
+   ADMIN LIBRARY — list & download all sent/signed MOUs
+   ------------------------------------------------------------------- */
+function initAdmin(){
+  pill('MOU Library','rgba(255,255,255,.12)');
+  if (ADMIN_CODE) loadLibrary(); else renderAdminLogin();
+}
+
+function renderAdminLogin(errText){
+  const app=document.getElementById('app');
+  app.innerHTML = `<div class="statuscard card" style="max-width:440px"><div class="bd">
+    <div class="big">🔒</div>
+    <h2 style="color:var(--navy)">MOU Library</h2>
+    <p style="color:var(--muted)">Enter the admin access code to view and download all sent and signed agreements.</p>
+    <input id="adminCode" type="password" placeholder="Admin access code" style="margin:10px 0 12px">
+    <button class="btn primary" id="adminEnter">Open library</button>
+    <div class="msg" id="adminMsg"></div>
+  </div></div>`;
+  const doEnter=()=>{ const v=document.getElementById('adminCode').value.trim(); if(!v) return; ADMIN_CODE=v; loadLibrary(); };
+  document.getElementById('adminEnter').onclick=doEnter;
+  document.getElementById('adminCode').addEventListener('keydown',e=>{ if(e.key==='Enter') doEnter(); });
+  if(errText){ const m=document.getElementById('adminMsg'); m.className='msg err'; m.textContent=errText; }
+}
+
+function loadLibrary(){
+  overlay(true,'Loading library…');
+  fetch(`${FN}/list-mous`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminCode:ADMIN_CODE})})
+    .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{
+      overlay(false);
+      if(!ok){ ADMIN_CODE=''; try{sessionStorage.removeItem('teach_admin_code');}catch(_){}; renderAdminLogin(j.error||'Access denied.'); return; }
+      try{ sessionStorage.setItem('teach_admin_code', ADMIN_CODE); }catch(_){}
+      ADMIN_ROWS = j.rows||[];
+      renderLibrary();
+    }).catch(e=>{ overlay(false); ADMIN_CODE=''; renderAdminLogin('Network error: '+e.message); });
+}
+
+function renderLibrary(){
+  const app=document.getElementById('app');
+  const total=ADMIN_ROWS.length,
+        signed=ADMIN_ROWS.filter(r=>r.status==='signed').length,
+        sent=ADMIN_ROWS.filter(r=>r.status==='sent').length;
+  app.innerHTML = `<div class="card">
+    <div class="hd" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div><h2>MOU Library</h2><p>${total} total · ${signed} signed · ${sent} awaiting signature</p></div>
+    </div>
+    <div class="libbar">
+      <input id="libSearch" placeholder="Search district, signer, email…" style="min-width:220px;flex:1">
+      <select id="libStatus">
+        <option value="all">All statuses</option>
+        <option value="signed">Signed</option>
+        <option value="sent">Awaiting signature</option>
+      </select>
+      <button class="btn ghost tiny" id="libRefresh">Refresh</button>
+      <button class="btn primary tiny" id="libZip">Download all signed (ZIP)</button>
+    </div>
+    <div class="bd" style="padding:0"><div class="lib-scroll" id="libTable"></div></div>
+  </div>`;
+  const s=document.getElementById('libSearch'); s.value=libFilter.q;
+  const st=document.getElementById('libStatus'); st.value=libFilter.status;
+  s.addEventListener('input',e=>{ libFilter.q=e.target.value; drawRows(); });
+  st.addEventListener('change',e=>{ libFilter.status=e.target.value; drawRows(); });
+  document.getElementById('libRefresh').onclick=loadLibrary;
+  document.getElementById('libZip').onclick=downloadAllZip;
+  drawRows();
+}
+
+function filteredRows(){
+  const q=libFilter.q.toLowerCase().trim();
+  return ADMIN_ROWS.filter(r=>{
+    if(libFilter.status!=='all' && r.status!==libFilter.status) return false;
+    if(!q) return true;
+    return [r.district,r.signed_name,r.recipient_email,r.sender_email,r.state].join(' ').toLowerCase().includes(q);
+  });
+}
+
+function drawRows(){
+  const host=document.getElementById('libTable'); if(!host) return;
+  const rows=filteredRows();
+  if(!rows.length){ host.innerHTML=`<p style="padding:30px;text-align:center;color:var(--muted)">No agreements match your search.</p>`; return; }
+  const d=v=>v? new Date(v).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+  const badge=r=> r.status==='signed'?`<span class="badge ok">Signed</span>`
+              : r.status==='voided'?`<span class="badge void">Voided</span>`
+              : `<span class="badge wait">Awaiting</span>`;
+  const action=r=> r.status==='signed'
+      ? `<button class="btn primary tiny" data-dl="${r.id}">Download</button>`
+      : `<button class="btn ghost tiny" data-copy="${r.recipient_token}">Copy link</button>`;
+  host.innerHTML = `<table class="libt">
+    <thead><tr>
+      <th>District / Partner</th><th>State</th><th>Status</th><th>Sent</th><th>Signed</th><th>Signer</th><th style="text-align:right">Action</th>
+    </tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td>${esc(r.district||'—')}<div class="sub">${esc(r.recipient_email||'')}</div></td>
+      <td>${esc(r.state||'—')}</td>
+      <td>${badge(r)}</td>
+      <td>${d(r.created_at)}</td>
+      <td>${d(r.signed_at)}</td>
+      <td>${esc(r.signed_name||'—')}${r.signed_title?'<div class="sub">'+esc(r.signed_title)+'</div>':''}</td>
+      <td style="text-align:right">${action(r)}</td>
+    </tr>`).join('')}</tbody></table>`;
+  host.querySelectorAll('[data-dl]').forEach(b=> b.onclick=()=>downloadOne(b.getAttribute('data-dl'), b));
+  host.querySelectorAll('[data-copy]').forEach(b=> b.onclick=()=>copyLink(b.getAttribute('data-copy'), b));
+}
+
+function b64toBlob(b64, type='application/pdf'){
+  const bin=atob(b64), len=bin.length, arr=new Uint8Array(len);
+  for(let i=0;i<len;i++) arr[i]=bin.charCodeAt(i);
+  return new Blob([arr],{type});
+}
+function downloadBlob(blob, filename){
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1200);
+}
+
+function downloadOne(id, btn){
+  const old=btn.textContent; btn.textContent='…'; btn.disabled=true;
+  fetch(`${FN}/get-signed-pdf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminCode:ADMIN_CODE,id})})
+    .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{
+      btn.textContent=old; btn.disabled=false;
+      if(!ok){ alert(j.error||'Could not download.'); return; }
+      downloadBlob(b64toBlob(j.pdfBase64), j.filename);
+    }).catch(e=>{ btn.textContent=old; btn.disabled=false; alert('Error: '+e.message); });
+}
+
+function copyLink(token, btn){
+  const url=`${location.origin}/index.html?token=${token}`;
+  const done=()=>{ const t=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1400); };
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(done).catch(()=>prompt('Copy this signing link:',url)); }
+  else { prompt('Copy this signing link:', url); }
+}
+
+async function downloadAllZip(){
+  const signed=ADMIN_ROWS.filter(r=>r.status==='signed');
+  if(!signed.length){ alert('There are no signed MOUs to download yet.'); return; }
+  if(typeof JSZip==='undefined'){ alert('The zip library did not load. Please refresh and try again.'); return; }
+  overlay(true,`Preparing ${signed.length} signed MOU${signed.length>1?'s':''}…`);
+  try{
+    const zip=new JSZip();
+    for(let i=0;i<signed.length;i++){
+      overlay(true,`Adding ${i+1} of ${signed.length}…`);
+      const res=await fetch(`${FN}/get-signed-pdf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminCode:ADMIN_CODE,id:signed[i].id})});
+      const j=await res.json();
+      if(res.ok && j.pdfBase64) zip.file(j.filename, j.pdfBase64, {base64:true});
+    }
+    overlay(true,'Building ZIP file…');
+    const blob=await zip.generateAsync({type:'blob'});
+    overlay(false);
+    downloadBlob(blob, `TEACH-signed-MOUs-${new Date().toISOString().slice(0,10)}.zip`);
+  }catch(e){ overlay(false); alert('Error building ZIP: '+e.message); }
+}
+
 function makeField(f, group){
   const star = f.req ? ' <span style="color:var(--crimson)">*</span>' : '';
   const wrap = el(`<div class="field"><label>${esc(f.label)}${f.money?' ($)':''}${star}</label></div>`);
