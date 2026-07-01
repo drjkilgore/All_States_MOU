@@ -1,0 +1,10 @@
+{
+  "name": "teach-mou-esign",
+  "version": "1.0.0",
+  "private": true,
+  "description": "#TEACH MOU e-Sign — two-party fill, send, sign, and email workflow.",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "@sendgrid/mail": "^8.1.3"
+  }
+}

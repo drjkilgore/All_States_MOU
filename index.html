@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>#TEACH MOU e-Sign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root{
+    --navy:#002E5D; --crimson:#8B0000; --sky:#12A7E6;
+    --ink:#1a2430; --muted:#64748b; --line:#e4e9f0; --bg:#eef1f6;
+    --ok:#0f9d58; --warn:#b45309;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',system-ui,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+  a{color:var(--sky)}
+  .topbar{background:var(--navy);color:#fff;padding:14px 22px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:20;}
+  .topbar .logo{font-weight:800;font-size:20px;letter-spacing:.3px}
+  .topbar .tag{color:var(--sky);font-size:12px;font-weight:600}
+  .topbar .spacer{flex:1}
+  .pill{font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.12);color:#fff}
+  .wrap{max-width:1220px;margin:0 auto;padding:22px;}
+  .grid{display:grid;grid-template-columns:minmax(360px,440px) 1fr;gap:22px;align-items:start;}
+  @media(max-width:940px){.grid{grid-template-columns:1fr}}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 3px rgba(16,31,54,.05);}
+  .card .hd{padding:16px 20px;border-bottom:1px solid var(--line);}
+  .card .hd h2{margin:0;font-size:16px;color:var(--navy)}
+  .card .hd p{margin:4px 0 0;font-size:12.5px;color:var(--muted)}
+  .card .bd{padding:18px 20px;}
+  .panel{position:sticky;top:76px;}
+  fieldset{border:1px solid var(--line);border-radius:10px;margin:0 0 16px;padding:14px 14px 4px;}
+  legend{font-size:12px;font-weight:700;color:var(--crimson);text-transform:uppercase;letter-spacing:.05em;padding:0 6px;}
+  label{display:block;font-size:12.5px;font-weight:600;color:#33465c;margin:0 0 5px}
+  .field{margin-bottom:13px}
+  input,textarea,select{width:100%;font:inherit;font-size:14px;padding:10px 11px;border:1px solid #cfd8e3;border-radius:8px;background:#fff;color:var(--ink)}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--sky);box-shadow:0 0 0 3px rgba(18,167,230,.15)}
+  input[readonly]{background:#f2f5f9;color:#5a6a7d}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .hint{font-size:11.5px;color:var(--muted);margin:-6px 0 12px}
+  .btn{appearance:none;border:none;cursor:pointer;font:inherit;font-weight:700;font-size:15px;border-radius:9px;padding:13px 18px;width:100%;}
+  .btn.primary{background:var(--crimson);color:#fff}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:#fff;border:1px solid #cfd8e3;color:var(--navy)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .msg{margin-top:12px;font-size:13px;padding:11px 13px;border-radius:8px;display:none}
+  .msg.err{display:block;background:#fdeaea;color:#9b1c1c;border:1px solid #f5c2c2}
+  .msg.ok{display:block;background:#e8f6ee;color:#0d7a3f;border:1px solid #b9e6cb}
+  /* Signature */
+  .sigtabs{display:flex;gap:6px;margin-bottom:8px}
+  .sigtab{flex:1;text-align:center;font-size:12.5px;font-weight:600;padding:8px;border:1px solid #cfd8e3;border-radius:8px;cursor:pointer;color:#4a5c72;background:#fff}
+  .sigtab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .sigbox{border:2px dashed #c3cede;border-radius:10px;background:#fbfcfe;position:relative}
+  #sigCanvas{width:100%;height:150px;display:block;touch-action:none;border-radius:8px}
+  .sigclear{position:absolute;top:8px;right:8px;font-size:11.5px;color:var(--crimson);background:#fff;border:1px solid var(--line);border-radius:6px;padding:4px 9px;cursor:pointer}
+  #sigType{font-family:'Dancing Script',cursive;font-size:34px;text-align:center;height:100px;border:2px dashed #c3cede;background:#fbfcfe}
+  /* Document preview */
+  .docwrap{background:#57657a;border-radius:14px;padding:20px;overflow:auto;max-height:calc(100vh - 120px)}
+  @media(max-width:940px){.docwrap{max-height:none}}
+  .paper{background:#fff;color:#141b24;width:816px;max-width:100%;margin:0 auto;padding:64px 70px;font-size:13px;line-height:1.55;box-shadow:0 8px 30px rgba(0,0,0,.25);}
+  .paper h1{font-size:19px;color:var(--navy);text-align:center;margin:0 0 2px}
+  .paper .sub{text-align:center;color:var(--crimson);font-style:italic;font-size:13px;margin:0 0 4px}
+  .paper .kicker{text-align:center;font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin:0 0 20px}
+  .paper h2{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--navy);padding:6px 12px;border-radius:5px;margin:22px 0 12px}
+  .paper h3{font-size:13.5px;color:var(--navy);margin:16px 0 6px}
+  .paper p{margin:0 0 10px}
+  .paper ul{margin:0 0 10px;padding-left:20px}
+  .paper li{margin:0 0 5px}
+  .paper table{width:100%;border-collapse:collapse;margin:6px 0 14px;font-size:12.5px}
+  .paper th,.paper td{border:1px solid #cdd6e2;padding:7px 10px;text-align:left}
+  .paper th{background:#eef3f9;color:var(--navy)}
+  .paper .pricecell{text-align:right;font-weight:700;white-space:nowrap}
+  .blank{background:#fff3cd;border-bottom:1.5px solid #d9a406;padding:0 6px;font-weight:600;color:#7a5b00;border-radius:2px}
+  .filled{border-bottom:1.5px solid var(--navy);padding:0 4px;font-weight:600}
+  .partybox{border:1px solid #cdd6e2;border-radius:8px;padding:12px 14px;margin:8px 0}
+  .sigline{border-top:1.5px solid #33465c;margin-top:34px;padding-top:5px;font-size:11.5px;color:#33465c}
+  .sigimg{height:52px;margin-bottom:-6px}
+  .sigtyped{font-family:'Dancing Script',cursive;font-size:30px;line-height:1;color:#10233c}
+  .foot{text-align:center;color:var(--muted);font-size:10.5px;margin-top:26px;font-style:italic}
+  .statuscard{max-width:640px;margin:40px auto;text-align:center}
+  .statuscard .big{font-size:46px;margin:6px 0}
+  .loading{padding:60px;text-align:center;color:var(--muted)}
+  .lock{font-size:11px;color:var(--muted);font-weight:600}
+  .overlay{position:fixed;inset:0;background:rgba(8,18,33,.6);display:none;align-items:center;justify-content:center;z-index:50}
+  .overlay.show{display:flex}
+  .overlay .box{background:#fff;border-radius:14px;padding:30px 34px;text-align:center;max-width:340px}
+  .spin{width:34px;height:34px;border:4px solid #dbe4ef;border-top-color:var(--crimson);border-radius:50%;margin:0 auto 14px;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">#TEACH</div>
+  <div class="tag">MOU e-Sign</div>
+  <div class="spacer"></div>
+  <div class="pill" id="statusPill">Loading…</div>
+</div>
+
+<div class="wrap">
+  <div id="app"></div>
+</div>
+
+<div class="overlay" id="overlay"><div class="box"><div class="spin"></div><div id="overlayMsg">Working…</div></div></div>
+
+<script>
+/* =====================================================================
+   #TEACH MOU e-Sign  —  front-end controller
+   Modes (by URL query):
+     ?token=XXXX   → district signs (recipient view)
+     ?status=XXXX  → sender status view
+     (none)        → staff creates a new MOU (sender view)
+   ===================================================================== */
+
+const FN = '/.netlify/functions';
+const qs = new URLSearchParams(location.search);
+const TOKEN  = qs.get('token');
+const STATUS = qs.get('status');
+
+/* ---- Field definitions ---- */
+const SENDER_FIELDS = [
+  {k:'state',           label:'State',          ph:'Michigan', hint:'Fills the “State of ___” reference in the Background section.'},
+  {k:'effective_date',  label:'Effective date', ph:'', type:'date'},
+];
+const PRICE_FIELDS = [
+  {k:'price_initial',        label:'Initial Certification'},
+  {k:'price_addl',           label:'Additional Endorsement'},
+  {k:'price_addl_sped',      label:'Additional Endorsement SPED'},
+  {k:'price_prime_initial',  label:'#TEACH Prime Initial'},
+  {k:'price_prime_addl',     label:'#TEACH Prime Additional Endorsement'},
+];
+const RECIPIENT_FIELDS = [
+  {k:'district_name',    label:'School / District / Partner name', ph:'e.g., Plymouth-Canton Community Schools'},
+  {k:'district_address', label:'Address',       ph:'Street, City, State ZIP', type:'textarea'},
+  {k:'signer_name',      label:'Authorized signer — printed name', ph:'Full name'},
+  {k:'signer_title',     label:'Signer title',  ph:'e.g., Superintendent'},
+];
+
+let STATE = { sender:{}, recipient:{}, signature:null, meta:{} };
+
+/* ---- helpers ---- */
+const el = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstChild;};
+const esc = (s)=> (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function money(v){ if(v==null||v==='') return ''; const n=String(v).replace(/[^0-9.]/g,''); if(n==='') return esc(v); return Number(n).toLocaleString('en-US'); }
+function fmtDate(v){ if(!v) return ''; const d=new Date(v+'T00:00:00'); if(isNaN(d)) return esc(v); return d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}); }
+function overlay(on,msg){ document.getElementById('overlay').classList.toggle('show',on); if(msg) document.getElementById('overlayMsg').textContent=msg; }
+function pill(txt,color){ const p=document.getElementById('statusPill'); p.textContent=txt; if(color) p.style.background=color; }
+
+/* Blank or filled span for the document */
+function slot(val, w){ const s = w?`min-width:${w}px;display:inline-block;`:''; 
+  return (val!=null && String(val).trim()!=='')
+    ? `<span class="filled" style="${s}">${esc(val)}</span>`
+    : `<span class="blank" style="${s}">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>`; }
+
+/* =====================================================================
+   MOU document renderer (used for live preview AND the final PDF)
+   ===================================================================== */
+function renderMOU(o){
+  const s=o.sender||{}, r=o.recipient||{}, forPdf=o.forPdf;
+  const st = s.state;
+  const money$ = (k)=> (s[k]!=null && s[k]!=='') ? `$${money(s[k])}` : slot(null,60);
+  const sigBlock = o.signature
+      ? (o.signature.type==='draw'
+          ? `<img class="sigimg" src="${o.signature.data}" alt="signature">`
+          : `<div class="sigtyped">${esc(o.signature.text)}</div>`)
+      : `<div style="height:44px"></div>`;
+
+  return `
+  <div class="paper" id="mouPaper">
+    <h1>MEMORANDUM OF UNDERSTANDING</h1>
+    <div class="sub">Teacher Certification Partnership Agreement</div>
+    <div class="kicker">TEACH-USA, LLC (#T.E.A.C.H.) · 2025–2027</div>
+
+    <div class="partybox">
+      <strong>Between</strong> TEACH-USA, LLC (#T.E.A.C.H.), 1098 Ann Arbor Rd. W #279, Plymouth, MI 48170
+      &nbsp;<strong>and</strong>&nbsp; ${slot(r.district_name,180)} <strong>(School / District)</strong>
+    </div>
+    <table><tr>
+      <th style="width:33%">Agreement Period</th><th style="width:34%">Effective Date</th><th style="width:33%">Expiration Date</th></tr>
+      <tr><td>2025 – 2027</td><td>${slot(fmtDate(s.effective_date),120)}</td><td>June 30, 2027</td></tr>
+    </table>
+
+    <p>This Memorandum of Understanding (“MOU”) is made and entered into as of ${slot(fmtDate(s.effective_date),120)} (the “Effective Date”), by and between TEACH-USA, LLC (#T.E.A.C.H.), with an address at 1098 Ann Arbor Rd. W #279, Plymouth, MI 48170, and ${slot(r.district_name,180)} (“School/District”), with an address at: ${slot(r.district_address,220)}.</p>
+
+    <h2>Recitals</h2>
+    <p>This Memorandum of Understanding sets forth the understanding of the parties related to teachers receiving their initial Certification/License. #T.E.A.C.H. will provide full certification program services to School/District teacher candidates, including support and content necessary for School/District teacher candidates to receive their Initial Teacher Certification/License.</p>
+    <p><strong>Background.</strong> #T.E.A.C.H. provides certification programs in the State of ${slot(st,120)} and School/District has teachers in need of certification.</p>
+    <p><strong>Purpose.</strong> The purpose of this MOU is to set forth certain understandings of the parties in relation to the terms and conditions agreed to between #T.E.A.C.H. and School/District.</p>
+
+    <h2>Terms</h2>
+    <p><strong>Term.</strong> This Memorandum of Understanding will expire on June 30, 2027.</p>
+
+    <h2>Understandings</h2>
+    <p>The parties set forth their understandings under this MOU with respect to certifying teachers as follows:</p>
+
+    <h3>1. #T.E.A.C.H. Services</h3>
+    <p>#T.E.A.C.H. will provide full certification program services to School/District teacher candidates including support and content necessary for candidates to receive their Initial Certification/License. #T.E.A.C.H. agrees that it is responsible for providing the following services for each candidate admitted into the program by School/District:</p>
+    <p><strong>a. Classroom Readiness Training (Phase 1).</strong> Phase 1 courses for each candidate, equivalent to:</p>
+    <ul><li>7.4 credit hours — Elementary &amp; Secondary programs</li><li>8.6 credit hours — K–12 &amp; PK–12 programs</li></ul>
+    <p><strong>b. Excellence in Teaching and Learning (Phase 2).</strong> Phase 2 courses for each candidate (includes methods course), equivalent to:</p>
+    <ul><li>7.84 credit hours — Elementary &amp; Secondary programs</li><li>8.64 credit hours — K–12 &amp; PK–12 programs</li></ul>
+    <p><strong>c. Special Education Program.</strong> Equivalent to 33 credit hours.</p>
+    <p><strong>d. Structured Residency Experience.</strong> Three (3) years of coaching for each candidate by #T.E.A.C.H. Instructional Coaches, who will provide up to thirty (30) observations, distributed as follows:</p>
+    <ul><li>Year 1: Up to twelve (12) virtual observation visits as needed</li><li>Year 2: Up to ten (10) virtual observation visits as needed</li><li>Year 3: Up to eight (8) virtual observation visits as needed</li></ul>
+    <ul>
+      <li>Any requirements necessary for each candidate accepted into the program to receive an initial teaching certificate/license from the State Department of Education.</li>
+      <li>Any other requirements necessary for each candidate to receive full certification from the State Department of Education after completion of the state mandated years of teaching on an initial certificate/license.</li>
+    </ul>
+
+    <h3>2. Program Fees and Pricing Schedule</h3>
+    <p>#T.E.A.C.H. will offer discounted rates to School/District based on the total enrolled in any 12-month period.</p>
+    <table>
+      <tr><th>Standard #T.E.A.C.H. Pricing</th><th style="width:140px">Fee</th></tr>
+      <tr><td>Initial Certification</td><td class="pricecell">${money$('price_initial')}</td></tr>
+      <tr><td>Additional Endorsement</td><td class="pricecell">${money$('price_addl')}</td></tr>
+      <tr><td>Additional Endorsement SPED</td><td class="pricecell">${money$('price_addl_sped')}</td></tr>
+      <tr><td>SPED Course Fee</td><td class="pricecell">$225</td></tr>
+      <tr><td>SPED Endorsement Add On</td><td class="pricecell">$500</td></tr>
+      <tr><td>#T.E.A.C.H. Prime Initial</td><td class="pricecell">${money$('price_prime_initial')}</td></tr>
+      <tr><td>#T.E.A.C.H. Prime Additional Endorsement</td><td class="pricecell">${money$('price_prime_addl')}</td></tr>
+    </table>
+
+    <h3>3. Payment Terms</h3>
+    <p>Payment must be made in full in the form of a check or guaranteed by a Purchase Order (PO) at the time of enrollment. Teachers will not have access to the program until payment is received or a Purchase Order is confirmed.</p>
+
+    <h3>4. Seat Transfer and Withdrawal Policy</h3>
+    <p>There are no refunds. However, if a teacher leaves School/District, the seat may be transferred to another candidate by paying an administrative fee according to the following schedule:</p>
+    <table>
+      <tr><th>Withdrawal Window</th><th>Administrative Fee</th></tr>
+      <tr><td>Within 30 days of enrollment</td><td>$100 Coaching Fee</td></tr>
+      <tr><td>31 – 60 days of enrollment</td><td>$300 Course Access Fee + $200 Coaching Fee</td></tr>
+      <tr><td>61 – 90 days of enrollment</td><td>$600 Course Access Fee + $300 Coaching Fee</td></tr>
+      <tr><td>After 90 days</td><td>$600 Course Access Fee + $100 Coaching Fee × # Months Served (13 max) + $135 per course completed. Total not to exceed original seat price.</td></tr>
+    </table>
+    <p><strong>Important:</strong> After 13 months, the seat must be repurchased at the applicable program rate.</p>
+
+    <h3>5. Joint Responsibilities</h3>
+    <p>School/District and #T.E.A.C.H. will ensure new teachers have the support necessary for success and that teachers complete all requirements necessary to receive their full certification/license. Specifically, the parties agree as follows:</p>
+    <ul>
+      <li><strong>Residency Experience.</strong> While working as a full-time teacher, candidates will be assigned an Instructional Coach by #T.E.A.C.H. to help them understand the demands of the teaching profession and to provide support and guidance.</li>
+      <li><strong>Candidate Selection and Enrollment.</strong> School/District will provide registration information on each of its teachers. Before registering, the parties will ensure the teachers meet the qualifications established by the State Department of Education for licensure.</li>
+      <li><strong>Expedited Pathway.</strong> #T.E.A.C.H. will evaluate each candidate’s educational background, relevant professional learning, and employment experience to waive coursework and other program requirements to expedite the pathway to certification.</li>
+      <li><strong>Mentoring.</strong> School/District agrees to provide intensive coaching and mentoring support to the teacher. “Intensive” means schools/districts do not provide any less supervision or mentorship to new teachers on Initial Teaching Certificates/Licenses than new teachers on Standard Teaching Certificates. The parties will work together to identify the school-based mentor; the School/District Mentor and #T.E.A.C.H. Instructional Coach will communicate at agreed-upon times regarding candidate progress.</li>
+      <li><strong>Educator Evaluation.</strong> Teacher candidates will be evaluated by School/District per Michigan Department of Education requirements for new teachers and per School/District policy. School/District will provide #T.E.A.C.H. with copies of Educator Evaluations. The #T.E.A.C.H.-assigned Instructional Coach will conduct spring and fall assessments each year a candidate is enrolled.</li>
+      <li><strong>Test Preparation.</strong> The parties agree to work cooperatively to assist candidates in preparing for the state required content and/or pedagogy test/exam, including test prep resources (e.g., practice tests, test prep courses) and release time to study prior to examination.</li>
+      <li><strong>Diverse Settings.</strong> New teachers should work in diverse settings, and School/District will provide all Interim teachers the opportunity to teach in diverse settings during the first three years.</li>
+      <li><strong>Commitment After Program Completion (Grow Your Own Districts Only).</strong> If a candidate has not completed all requirements before the conclusion of the grant cycle, the parties agree to support the candidate for a mutually agreed-upon time or until the candidate earns a teaching certificate, whichever comes first.</li>
+      <li><strong>Intent to Enroll.</strong> It is the School/District’s intent to enroll the identified candidates; School/District may adjust this list as necessary in consultation with #T.E.A.C.H.</li>
+      <li><strong>Progress Reporting.</strong> #T.E.A.C.H. will keep School/District apprised of progress on all candidates paid for by School/District.</li>
+    </ul>
+
+    <h2>Legal Provisions</h2>
+    <p><strong>Termination.</strong> Either party may terminate this MOU upon no less than sixty (60) days’ prior written notice. The parties agree to make every effort to resolve disputes to mutual satisfaction to allow program continuation and minimize harm to participants. School/District reserves the right to cancel an assignment at any time with or without cause. Upon termination, School/District will, within thirty (30) days, provide final payment for all #T.E.A.C.H. services completed through the effective date of termination.</p>
+    <p><strong>Indemnification.</strong> #T.E.A.C.H. agrees to indemnify and hold School/District free and harmless from all claims or liability (including court costs and attorney’s fees) arising out of the discharge (or lack thereof) of #T.E.A.C.H.’s duties under this MOU.</p>
+    <p><strong>Assignment.</strong> Neither party may assign its rights or delegate its duties under this MOU without the prior written consent of the other party.</p>
+    <p><strong>Governing Law.</strong> This Agreement shall be governed by and construed in accordance with the laws of the State of Michigan.</p>
+    <p><strong>Entire Agreement.</strong> This MOU constitutes the entire agreement between the parties pertaining to its subject matter and supersedes all prior and contemporaneous agreements, representations, and understandings. No supplement, modification, or amendment shall be binding unless executed in writing by all parties.</p>
+
+    <h2>Signatures</h2>
+    <p>IN WITNESS WHEREOF, by their signatures below, the parties have caused this Memorandum of Understanding to be executed and effective as of the Effective Date.</p>
+
+    <div style="display:flex;gap:26px;flex-wrap:wrap;margin-top:10px">
+      <div style="flex:1;min-width:240px">
+        <div style="font-weight:700;color:var(--navy);margin-bottom:26px">TEACH-USA, LLC (#T.E.A.C.H.)</div>
+        <div class="sigtyped" style="font-size:26px">Jessie E. Kilgore, Jr.</div>
+        <div class="sigline">Jessie E. Kilgore, Jr., PhD — President/Founder &nbsp; · &nbsp; Date: ${esc(o.meta&&o.meta.senderSignDate || fmtDate(s.effective_date))}</div>
+      </div>
+      <div style="flex:1;min-width:240px">
+        <div style="font-weight:700;color:var(--navy);margin-bottom:6px">School / District / Partner</div>
+        <div style="font-size:12px;margin-bottom:14px">${slot(r.district_name,160)}</div>
+        ${sigBlock}
+        <div class="sigline">
+          ${slot(r.signer_name,150)}${r.signer_title? ', '+esc(r.signer_title):''}<br>
+          Date: ${esc(o.meta&&o.meta.recipientSignDate || '')}
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">MOU — School/District &amp; #T.E.A.C.H. · Teacher Certification Partnership · 2025–2027</div>
+  </div>`;
+}
+
+/* =====================================================================
+   VIEW ROUTER
+   ===================================================================== */
+if (TOKEN)       initRecipient();
+else if (STATUS) initStatus();
+else             initSender();
+
+/* ---------------------------------------------------------------------
+   SENDER VIEW — staff fills program details & sends to district
+   ------------------------------------------------------------------- */
+function initSender(){
+  pill('New Agreement','rgba(255,255,255,.12)');
+  const app = document.getElementById('app');
+  app.innerHTML = `
+  <div class="grid">
+    <div class="panel">
+      <div class="card">
+        <div class="hd"><h2>Prepare the MOU</h2><p>Complete your portion, then send it to the district to finish and sign.</p></div>
+        <div class="bd">
+          <div id="gate"></div>
+          <div id="senderForm"></div>
+        </div>
+      </div>
+    </div>
+    <div class="docwrap"><div id="preview"></div></div>
+  </div>`;
+
+  // Optional access gate is enforced server-side; we still show a field if you want it.
+  const form = document.getElementById('senderForm');
+  form.appendChild(el(`<fieldset><legend>Program details</legend><div id="fdSender"></div></fieldset>`));
+  const fdS = form.querySelector('#fdSender');
+  SENDER_FIELDS.forEach(f=> fdS.appendChild(makeField(f,'sender')));
+
+  form.appendChild(el(`<fieldset><legend>Pricing schedule</legend><div class="row2" id="fdPrice"></div></fieldset>`));
+  const fdP = form.querySelector('#fdPrice');
+  PRICE_FIELDS.forEach(f=> fdP.appendChild(makeField({...f, money:true},'sender')));
+
+  form.appendChild(el(`
+    <fieldset><legend>Send to district</legend>
+      <div class="field"><label>Your name (#TEACH)</label><input id="senderName" placeholder="e.g., Dr. Meagan Brown"></div>
+      <div class="field"><label>Your email (gets a signed copy)</label><input id="senderEmail" type="email" placeholder="you@teach-usa.com"></div>
+      <div class="field"><label>District recipient name</label><input id="recipientName" placeholder="e.g., Dr. Jane Smith, Superintendent"></div>
+      <div class="field"><label>District recipient email</label><input id="recipientEmail" type="email" placeholder="signer@district.org"></div>
+      <div class="field" id="codeWrap" style="display:none"><label>Access code</label><input id="accessCode" placeholder="Staff access code"></div>
+    </fieldset>
+    <button class="btn primary" id="sendBtn">Send for Signature →</button>
+    <div class="msg" id="senderMsg"></div>
+    <p class="hint" style="margin-top:10px">You (#TEACH) sign automatically — the President/Founder signature block is pre-applied. The district completes their info and signs on the next screen.</p>
+  `));
+
+  // Show access-code field only if the deployment sets SENDER_ACCESS_CODE (we can't read env,
+  // so we surface it always-optional; server rejects if required and blank/wrong).
+  document.getElementById('codeWrap').style.display='block';
+
+  document.getElementById('sendBtn').onclick = submitSender;
+  refreshPreview();
+}
+
+function submitSender(){
+  const msg = document.getElementById('senderMsg');
+  msg.className='msg';
+  const senderEmail = val('senderEmail'), recipientEmail = val('recipientEmail');
+  if(!senderEmail || !recipientEmail){ return showMsg(msg,'err','Please enter both your email and the district recipient email.'); }
+
+  overlay(true,'Sending MOU to the district…');
+  fetch(`${FN}/create-mou`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      accessCode: val('accessCode'),
+      senderName: val('senderName'),
+      senderEmail, recipientEmail,
+      recipientName: val('recipientName'),
+      senderFields: {...STATE.sender, district_name: val('recipientName')?undefined:undefined}
+    })
+  }).then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{
+    overlay(false);
+    if(!ok){ return showMsg(msg,'err', j.error||'Something went wrong.'); }
+    document.querySelector('.grid').innerHTML = `
+      <div class="statuscard card"><div class="bd">
+        <div class="big">✅</div>
+        <h2 style="color:var(--navy)">Sent for signature</h2>
+        <p style="color:var(--muted)">The district was emailed a private signing link at <strong>${esc(recipientEmail)}</strong>.
+        You’ll receive the fully executed PDF the moment they sign.</p>
+        <p style="margin-top:18px"><a href="${esc(j.status_url)}">Track signing status →</a></p>
+        <button class="btn ghost" style="max-width:260px;margin:18px auto 0" onclick="location.href=location.pathname">Prepare another MOU</button>
+      </div></div>`;
+  }).catch(e=>{ overlay(false); showMsg(msg,'err','Network error: '+e.message); });
+}
+
+/* ---------------------------------------------------------------------
+   RECIPIENT VIEW — district completes info & signs
+   ------------------------------------------------------------------- */
+function initRecipient(){
+  pill('Awaiting Signature','rgba(255,255,255,.12)');
+  const app=document.getElementById('app');
+  app.innerHTML = `<div class="loading">Loading your agreement…</div>`;
+
+  fetch(`${FN}/get-mou`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN})})
+    .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{
+      if(!ok){ app.innerHTML = errCard(j.error||'This link is invalid.'); return; }
+      STATE.sender = j.senderFields||{};
+      STATE.recipient = j.recipientFields||{};
+      if(j.status==='signed'){ app.innerHTML = alreadySignedCard(j); return; }
+      renderRecipientForm(j);
+    }).catch(e=> app.innerHTML = errCard('Network error: '+e.message));
+}
+
+function renderRecipientForm(j){
+  const app=document.getElementById('app');
+  app.innerHTML = `
+  <div class="grid">
+    <div class="panel">
+      <div class="card">
+        <div class="hd"><h2>Review &amp; Sign</h2><p>${j.senderName? esc(j.senderName)+' at ':''}#TEACH prepared this agreement. Complete your information and sign below.</p></div>
+        <div class="bd">
+          <fieldset><legend>Program summary <span class="lock">(set by #TEACH — read only)</span></legend><div id="summary"></div></fieldset>
+          <fieldset><legend>District information</legend><div id="fdRecip"></div></fieldset>
+          <fieldset><legend>Electronic signature</legend>
+            <div class="sigtabs">
+              <div class="sigtab active" data-mode="draw">Draw</div>
+              <div class="sigtab" data-mode="type">Type</div>
+            </div>
+            <div id="sigDraw">
+              <div class="sigbox"><span class="sigclear" id="sigClear">Clear</span><canvas id="sigCanvas"></canvas></div>
+              <p class="hint">Sign with your mouse or finger.</p>
+            </div>
+            <div id="sigTypeWrap" style="display:none">
+              <input id="sigType" placeholder="Type your name">
+              <p class="hint">Your typed name becomes your signature.</p>
+            </div>
+          </fieldset>
+          <label style="display:flex;gap:9px;align-items:flex-start;font-weight:500;margin:4px 0 14px;font-size:12.5px">
+            <input type="checkbox" id="consent" style="width:auto;margin-top:2px">
+            <span>I agree that my electronic signature is the legal equivalent of my handwritten signature and that I am authorized to bind the School/District/Partner to this agreement.</span>
+          </label>
+          <button class="btn primary" id="signBtn" disabled>Sign &amp; Send Signed Copy →</button>
+          <div class="msg" id="signMsg"></div>
+        </div>
+      </div>
+    </div>
+    <div class="docwrap"><div id="preview"></div></div>
+  </div>`;
+
+  // Read-only program summary
+  const summary = app.querySelector('#summary');
+  const s = STATE.sender;
+  const line=(lbl,v)=> summary.appendChild(el(`<div class="field"><label>${lbl}</label><input readonly value="${esc(v||'—')}"></div>`));
+  line('State', s.state);
+  line('Effective date', fmtDate(s.effective_date));
+
+  // District fields
+  const fd = app.querySelector('#fdRecip');
+  RECIPIENT_FIELDS.forEach(f=> fd.appendChild(makeField(f,'recipient')));
+
+  setupSignature();
+  app.querySelector('#signBtn').onclick = submitSignature;
+
+  ['consent'].forEach(id=> app.querySelector('#'+id).addEventListener('change',validateSign));
+  refreshPreview();
+}
+
+function submitSignature(){
+  const msg=document.getElementById('signMsg'); msg.className='msg';
+  if(!STATE.recipient.signer_name){ return showMsg(msg,'err','Please enter the authorized signer’s printed name.'); }
+  if(!STATE.signature){ return showMsg(msg,'err','Please provide your signature.'); }
+
+  STATE.meta.recipientSignDate = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  refreshPreview();
+
+  overlay(true,'Generating your signed PDF…');
+  // Build a clean copy of the paper for PDF (light background, no highlight blanks)
+  const paper = document.getElementById('mouPaper').cloneNode(true);
+  paper.querySelectorAll('.blank').forEach(b=> b.outerHTML = '<span style="border-bottom:1px solid #333;">&nbsp;&nbsp;&nbsp;&nbsp;</span>');
+  const holder = document.createElement('div');
+  holder.style.cssText='position:fixed;left:-9999px;top:0;background:#fff';
+  holder.appendChild(paper); document.body.appendChild(holder);
+
+  html2pdf().set({
+    margin:[10,10,12,10],
+    filename:'TEACH-MOU-signed.pdf',
+    image:{type:'jpeg',quality:0.96},
+    html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+    jsPDF:{unit:'mm',format:'letter',orientation:'portrait'},
+    pagebreak:{mode:['css','legacy']}
+  }).from(paper).outputPdf('datauristring').then(uri=>{
+    document.body.removeChild(holder);
+    const base64 = uri.split(',')[1];
+    overlay(true,'Emailing signed copies…');
+    return fetch(`${FN}/sign-mou`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        token:TOKEN,
+        recipientFields:STATE.recipient,
+        signatureData: STATE.signature.type==='draw'?STATE.signature.data:null,
+        signedName:STATE.recipient.signer_name,
+        signedTitle:STATE.recipient.signer_title,
+        pdfBase64:base64
+      })
+    });
+  }).then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{
+    overlay(false);
+    if(!ok){ return showMsg(msg,'err', j.error||'Could not complete signing.'); }
+    pill('Signed ✓','rgba(255,255,255,.12)');
+    document.querySelector('.grid').innerHTML = `
+      <div class="statuscard card"><div class="bd">
+        <div class="big">🎉</div>
+        <h2 style="color:var(--navy)">Thank you — the MOU is fully executed</h2>
+        <p style="color:var(--muted)">A signed PDF copy has been emailed to you and to #TEACH.
+        ${j.warnings&&j.warnings.length? '<br><span style="color:var(--warn)">Note: '+esc(j.warnings.join('; '))+'</span>':''}</p>
+      </div></div>`;
+  }).catch(e=>{ overlay(false); try{document.body.removeChild(holder);}catch(_){}; showMsg(msg,'err','Error: '+e.message); });
+}
+
+/* ---------------------------------------------------------------------
+   STATUS VIEW — sender checks progress
+   ------------------------------------------------------------------- */
+function initStatus(){
+  const app=document.getElementById('app');
+  app.innerHTML = `<div class="loading">Loading status…</div>`;
+  fetch(`${FN}/get-mou`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({statusToken:STATUS})})
+    .then(r=>r.json().then(j=>({ok:r.ok,j}))).then(({ok,j})=>{
+      if(!ok){ app.innerHTML=errCard(j.error||'Invalid link.'); return; }
+      const signed = j.status==='signed';
+      pill(signed?'Signed ✓':'Awaiting Signature','rgba(255,255,255,.12)');
+      const s=j.senderFields||{}, r=j.recipientFields||{};
+      app.innerHTML = `
+        <div class="statuscard card"><div class="bd">
+          <div class="big">${signed?'✅':'⏳'}</div>
+          <h2 style="color:var(--navy)">${signed?'Fully executed':'Awaiting district signature'}</h2>
+          <p style="color:var(--muted)">
+            District: <strong>${esc(r.district_name||s.district_name||'—')}</strong><br>
+            State: <strong>${esc(s.state||'—')}</strong> · Effective: <strong>${esc(fmtDate(s.effective_date)||'—')}</strong>
+          </p>
+          ${signed
+            ? `<p style="color:var(--ok);font-weight:600">Signed by ${esc(j.signedName||'')}${j.signedTitle?', '+esc(j.signedTitle):''} on ${esc(new Date(j.signedAt).toLocaleString('en-US'))}. A signed PDF was emailed to both parties.</p>`
+            : `<p style="color:var(--warn);font-weight:600">The district has not signed yet. The signing link remains active in their inbox.</p>`}
+        </div></div>`;
+    }).catch(e=> app.innerHTML=errCard('Network error: '+e.message));
+}
+
+/* =====================================================================
+   FORM + SIGNATURE + PREVIEW plumbing
+   ===================================================================== */
+function makeField(f, group){
+  const wrap = el(`<div class="field"><label>${esc(f.label)}${f.money?' ($)':''}</label></div>`);
+  const input = f.type==='textarea'
+      ? el(`<textarea rows="2" placeholder="${esc(f.ph||'')}"></textarea>`)
+      : el(`<input type="${f.type||'text'}" placeholder="${esc(f.ph||'')}">`);
+  input.value = (STATE[group][f.k]||'');
+  input.addEventListener('input',()=>{ STATE[group][f.k]=input.value; refreshPreview(); if(group==='recipient') validateSign(); });
+  wrap.appendChild(input);
+  if(f.hint) wrap.appendChild(el(`<p class="hint" style="margin-top:5px">${esc(f.hint)}</p>`));
+  return wrap;
+}
+
+function setupSignature(){
+  const canvas=document.getElementById('sigCanvas');
+  const ctx=canvas.getContext('2d');
+  function size(){ const r=canvas.getBoundingClientRect(); canvas.width=r.width*2; canvas.height=r.height*2; ctx.scale(2,2); ctx.lineWidth=2.2; ctx.lineCap='round'; ctx.strokeStyle='#10233c'; }
+  size();
+  let drawing=false, has=false;
+  const pos=(e)=>{ const r=canvas.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left,y:t.clientY-r.top}; };
+  const start=(e)=>{ drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); };
+  const move=(e)=>{ if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); has=true; e.preventDefault(); };
+  const end=()=>{ if(!drawing)return; drawing=false; if(has){ STATE.signature={type:'draw',data:canvas.toDataURL('image/png')}; refreshPreview(); validateSign(); } };
+  canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+  canvas.addEventListener('touchstart',start); canvas.addEventListener('touchmove',move); canvas.addEventListener('touchend',end);
+  document.getElementById('sigClear').onclick=()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); has=false; STATE.signature=null; refreshPreview(); validateSign(); };
+
+  // Type mode
+  const typeInput=document.getElementById('sigType');
+  typeInput.addEventListener('input',()=>{ const t=typeInput.value.trim(); STATE.signature = t?{type:'type',text:t}:null; refreshPreview(); validateSign(); });
+
+  document.querySelectorAll('.sigtab').forEach(tab=> tab.onclick=()=>{
+    document.querySelectorAll('.sigtab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const mode=tab.dataset.mode;
+    document.getElementById('sigDraw').style.display = mode==='draw'?'block':'none';
+    document.getElementById('sigTypeWrap').style.display = mode==='type'?'block':'none';
+    STATE.signature=null; if(mode==='draw'){ size(); ctx.clearRect(0,0,canvas.width,canvas.height); has=false; } else { typeInput.value=''; }
+    refreshPreview(); validateSign();
+  });
+}
+
+function validateSign(){
+  const btn=document.getElementById('signBtn'); if(!btn) return;
+  const ok = STATE.recipient.signer_name && STATE.signature && document.getElementById('consent') && document.getElementById('consent').checked;
+  btn.disabled = !ok;
+}
+
+function refreshPreview(){
+  const p=document.getElementById('preview'); if(!p) return;
+  p.innerHTML = renderMOU({sender:STATE.sender, recipient:STATE.recipient, signature:STATE.signature, meta:STATE.meta});
+}
+
+/* small utilities */
+function val(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+function showMsg(node,type,text){ node.className='msg '+type; node.textContent=text; }
+function errCard(text){ return `<div class="statuscard card"><div class="bd"><div class="big">⚠️</div><h2 style="color:var(--crimson)">Unable to load</h2><p style="color:var(--muted)">${esc(text)}</p></div></div>`; }
+function alreadySignedCard(j){ return `<div class="statuscard card"><div class="bd"><div class="big">✅</div><h2 style="color:var(--navy)">This MOU is already signed</h2><p style="color:var(--muted)">Signed by ${esc(j.signedName||'')}${j.signedTitle?', '+esc(j.signedTitle):''} on ${esc(j.signedAt?new Date(j.signedAt).toLocaleString('en-US'):'')}. A signed copy was emailed to both parties.</p></div></div>`; }
+</script>
+</body>
+</html>

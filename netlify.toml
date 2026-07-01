@@ -1,0 +1,17 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# Pretty routes for the two entry points (optional; the app also works with query params)
+[[redirects]]
+  from = "/sign/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/status/*"
+  to = "/index.html"
+  status = 200
+
+[functions]
+  node_bundler = "esbuild"
