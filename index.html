@@ -6,7 +6,8 @@
 <title>#TEACH MOU e-Sign</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/vfs_fonts.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
@@ -355,6 +356,277 @@ async function sha256hex(str){
 function fmtStamp(iso){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return esc(iso);
   return d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})+' • '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'}); }
 function auditLabel(ev){ return ({created:'MOU Created',sent:'Sent to District',reminder_sent:'Reminder Sent',viewed:'Document Viewed',signed:'Electronically Signed',completed:'Completed & Sealed'}[ev]||ev); }
+
+/* ===== pdfmake document builder (tested, deterministic pagination) ===== */
+const SVG_LOCK=(c)=>'<svg width="14" height="14" viewBox="0 0 24 24"><path fill="'+c+'" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3H9z"/></svg>';
+const SVG_CHECK=(c)=>'<svg width="12" height="12" viewBox="0 0 24 24"><path fill="'+c+'" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.42z"/></svg>';
+function buildMouDocDef(data){
+    const NAVY='#002E5D', CRIMSON='#8B0000', SKY='#12A7E6', INK='#1a2430', MUT='#5a6a7d', LINE='#cdd6e2', HEADFILL='#eef3f9', OK='#0d7a3f';
+    const s=data.sender||{}, r=data.recipient||{}, a=data.auth||{}, authed=!!a.signed, modified=a.status==='modified';
+    const price=(k)=> (s[k]!=null&&s[k]!=='')?('$'+money(s[k])):'—';
+    // underlined filled field (inline)
+    const U=(v,ph)=> (v!=null&&v!=='')?{text:String(v),bold:true,decoration:'underline',color:NAVY}:{text:ph||'____________________',color:'#93a6b8'};
+
+    // section band (navy bar, white text)
+    const band=(t)=>({ table:{widths:['*'], body:[[{text:t,color:'white',bold:true,fontSize:9.5,characterSpacing:0.4}]]},
+      layout:{defaultBorder:false, fillColor:()=>NAVY, paddingLeft:()=>8,paddingRight:()=>8,paddingTop:()=>4,paddingBottom:()=>4}, margin:[0,13,0,7] });
+    const h3=(t)=>({text:t, bold:true, fontSize:11, color:NAVY, margin:[0,9,0,3]});
+    const para=(text)=>({text, fontSize:9.5, lineHeight:1.32, margin:[0,0,0,6], color:INK});
+    const bullets=(arr,opts)=>Object.assign({ul:arr, fontSize:9.5, lineHeight:1.3, margin:[6,0,0,6], color:INK},opts||{});
+    // grid table layout
+    const grid=()=>({ hLineWidth:()=>0.7, vLineWidth:()=>0.7, hLineColor:()=>LINE, vLineColor:()=>LINE,
+      paddingLeft:()=>7,paddingRight:()=>7,paddingTop:()=>4.5,paddingBottom:()=>4.5 });
+    const th=(t)=>({text:t,bold:true,color:NAVY,fillColor:HEADFILL,fontSize:9.5});
+    const td=(t)=>({text:t,fontSize:9.5,color:INK});
+
+    const content=[];
+
+    /* ---- Authentication ribbon (signed only) ---- */
+    if(authed){
+      content.push({
+        table:{widths:[18,'*'], body:[[
+          (modified?{text:'!',fontSize:13,bold:true,color:'white',alignment:'center',margin:[0,1,0,0]}:{svg:SVG_LOCK('#ffffff'),width:14,margin:[1,1,0,0]}),
+          {text:[ {text:(modified?'Authentication Invalid  ':'Digitally Authenticated  '),bold:true,color:'white',fontSize:10},
+                  {text:(modified?'This document has been modified since completion; the signatures can no longer be verified.'
+                                 :'This document was electronically signed and securely authenticated. Any modifications made after completion will invalidate the authentication.'),
+                   color:'white',fontSize:8.5} ]}
+        ]]},
+        layout:{defaultBorder:false, fillColor:()=> modified?'#b3261e':SKY, paddingLeft:()=>10,paddingRight:()=>12,paddingTop:()=>7,paddingBottom:()=>7},
+        margin:[0,0,0,14]
+      });
+    }
+
+    /* ---- Title ---- */
+    content.push({text:'MEMORANDUM OF UNDERSTANDING', bold:true, fontSize:17, color:NAVY, alignment:'center', margin:[0,0,0,2]});
+    content.push({text:'Teacher Certification Partnership Agreement', italics:true, fontSize:11, color:CRIMSON, alignment:'center', margin:[0,0,0,3]});
+    content.push({text:'TEACH-USA, LLC (#T.E.A.C.H.)  ·  2025–2027', fontSize:8.5, color:MUT, alignment:'center', characterSpacing:1, margin:[0,0,0,12]});
+
+    /* ---- Party box ---- */
+    content.push({
+      table:{widths:['*'], body:[[{ text:[
+        {text:'Between ',bold:true},'TEACH-USA, LLC (#T.E.A.C.H.), 1098 Ann Arbor Rd. W #279, Plymouth, MI 48170 ',
+        {text:'and ',bold:true}, U(r.district_name), {text:'  (School / District)',color:MUT} ], fontSize:9.5, lineHeight:1.3 }]]},
+      layout:{hLineWidth:()=>0.8,vLineWidth:()=>0.8,hLineColor:()=>LINE,vLineColor:()=>LINE,paddingLeft:()=>10,paddingRight:()=>10,paddingTop:()=>8,paddingBottom:()=>8},
+      margin:[0,0,0,10]
+    });
+
+    /* ---- Agreement period ---- */
+    content.push({ table:{widths:['*','*','*'], headerRows:1, body:[
+        [th('Agreement Period'),th('Effective Date'),th('Expiration Date')],
+        [td('2025 – 2027'), {text:U(fmtDate(s.effective_date)),fontSize:9.5}, td('June 30, 2027')]
+      ]}, layout:grid(), margin:[0,0,0,10] });
+
+    content.push({text:['This Memorandum of Understanding (“MOU”) is made and entered into as of ',U(fmtDate(s.effective_date)),
+      ' (the “Effective Date”), by and between TEACH-USA, LLC (#T.E.A.C.H.), with an address at 1098 Ann Arbor Rd. W #279, Plymouth, MI 48170, and ',
+      U(r.district_name),' (“School/District”), with an address at: ',U(r.district_address),'.'], fontSize:9.5, lineHeight:1.32, margin:[0,0,0,4], color:INK});
+
+    /* ---- Recitals ---- */
+    content.push(band('RECITALS'));
+    content.push(para('This Memorandum of Understanding sets forth the understanding of the parties related to teachers receiving their initial Certification/License. #T.E.A.C.H. will provide full certification program services to School/District teacher candidates, including support and content necessary for School/District teacher candidates to receive their Initial Teacher Certification/License.'));
+    content.push({text:[{text:'Background. ',bold:true},'#T.E.A.C.H. provides certification programs in the State of ',U(s.state),' and School/District has teachers in need of certification.'], fontSize:9.5, lineHeight:1.32, margin:[0,0,0,6], color:INK});
+    content.push({text:[{text:'Purpose. ',bold:true},'The purpose of this MOU is to set forth certain understandings of the parties in relation to the terms and conditions agreed to between #T.E.A.C.H. and School/District.'], fontSize:9.5, lineHeight:1.32, margin:[0,0,0,6], color:INK});
+
+    /* ---- Terms ---- */
+    content.push(band('TERMS'));
+    content.push({text:[{text:'Term. ',bold:true},'This Memorandum of Understanding will expire on June 30, 2027.'], fontSize:9.5, lineHeight:1.32, color:INK});
+
+    /* ---- Understandings ---- */
+    content.push(band('UNDERSTANDINGS'));
+    content.push(para('The parties set forth their understandings under this MOU with respect to certifying teachers as follows:'));
+    content.push(h3('1. #T.E.A.C.H. Services'));
+    content.push(para('#T.E.A.C.H. will provide full certification program services to School/District teacher candidates including support and content necessary for candidates to receive their Initial Certification/License. #T.E.A.C.H. agrees that it is responsible for providing the following services for each candidate admitted into the program by School/District:'));
+    content.push({text:[{text:'a. Classroom Readiness Training (Phase 1). ',bold:true},'Phase 1 courses for each candidate, equivalent to:'], fontSize:9.5, lineHeight:1.3, margin:[0,0,0,3], color:INK});
+    content.push(bullets(['7.4 credit hours — Elementary & Secondary programs','8.6 credit hours — K–12 & PK–12 programs']));
+    content.push({text:[{text:'b. Excellence in Teaching and Learning (Phase 2). ',bold:true},'Phase 2 courses for each candidate (includes methods course), equivalent to:'], fontSize:9.5, lineHeight:1.3, margin:[0,0,0,3], color:INK});
+    content.push(bullets(['7.84 credit hours — Elementary & Secondary programs','8.64 credit hours — K–12 & PK–12 programs']));
+    content.push({text:[{text:'c. Special Education Program. ',bold:true},'Equivalent to 33 credit hours.'], fontSize:9.5, lineHeight:1.3, margin:[0,0,0,3], color:INK});
+    content.push({text:[{text:'d. Structured Residency Experience. ',bold:true},'Three (3) years of coaching for each candidate by #T.E.A.C.H. Instructional Coaches, who will provide up to thirty (30) observations, distributed as follows:'], fontSize:9.5, lineHeight:1.3, margin:[0,0,0,3], color:INK});
+    content.push(bullets(['Year 1: Up to twelve (12) virtual observation visits as needed','Year 2: Up to ten (10) virtual observation visits as needed','Year 3: Up to eight (8) virtual observation visits as needed','Any requirements necessary for each candidate accepted into the program to receive an initial teaching certificate/license from the State Department of Education.','Any other requirements necessary for each candidate to receive full certification from the State Department of Education after completion of the state mandated years of teaching on an initial certificate/license.']));
+
+    /* ---- Pricing (kept together on one page) ---- */
+    content.push({ stack:[
+      h3('2. Program Fees and Pricing Schedule'),
+      para('#T.E.A.C.H. will offer discounted rates to School/District based on the total enrolled in any 12-month period.'),
+      { table:{widths:['*',90], headerRows:1, dontBreakRows:true, body:[
+        [th('Standard #T.E.A.C.H. Pricing'), {text:'Fee',bold:true,color:NAVY,fillColor:HEADFILL,fontSize:9.5,alignment:'right'}],
+        [td('Initial Certification'), {text:price('price_initial'),bold:true,alignment:'right',fontSize:9.5}],
+        [td('Additional Endorsement'), {text:price('price_addl'),bold:true,alignment:'right',fontSize:9.5}],
+        [td('Additional Endorsement SPED'), {text:price('price_addl_sped'),bold:true,alignment:'right',fontSize:9.5}],
+        [td('SPED Course Fee'), {text:'$225',bold:true,alignment:'right',fontSize:9.5}],
+        [td('SPED Endorsement Add On'), {text:'$500',bold:true,alignment:'right',fontSize:9.5}],
+        [td('#T.E.A.C.H. Prime Initial'), {text:price('price_prime_initial'),bold:true,alignment:'right',fontSize:9.5}],
+        [td('#T.E.A.C.H. Prime Additional Endorsement'), {text:price('price_prime_addl'),bold:true,alignment:'right',fontSize:9.5}]
+      ]}, layout:grid() }
+    ], unbreakable:true, margin:[0,0,0,0] });
+
+    /* ---- Payment Terms ---- */
+    content.push({ stack:[ h3('3. Payment Terms'),
+      para('Payment must be made in full in the form of a check or guaranteed by a Purchase Order (PO) at the time of enrollment. Teachers will not have access to the program until payment is received or a Purchase Order is confirmed.') ], unbreakable:true });
+
+    /* ---- Seat Transfer ---- */
+    content.push({ stack:[ h3('4. Seat Transfer and Withdrawal Policy'),
+      para('There are no refunds. However, if a teacher leaves School/District, the seat may be transferred to another candidate by paying an administrative fee according to the following schedule:'),
+      { table:{widths:[110,'*'], headerRows:1, dontBreakRows:true, body:[
+        [th('Withdrawal Window'), th('Administrative Fee')],
+        [td('Within 30 days of enrollment'), td('$100 Coaching Fee')],
+        [td('31 – 60 days of enrollment'), td('$300 Course Access Fee + $200 Coaching Fee')],
+        [td('61 – 90 days of enrollment'), td('$600 Course Access Fee + $300 Coaching Fee')],
+        [td('After 90 days'), td('$600 Course Access Fee + $100 Coaching Fee × # Months Served (13 max) + $135 per course completed. Total not to exceed original seat price.')]
+      ]}, layout:grid() },
+      {text:[{text:'Important: ',bold:true},'After 13 months, the seat must be repurchased at the applicable program rate.'], fontSize:9.5, lineHeight:1.3, margin:[0,6,0,0], color:INK}
+    ], unbreakable:true });
+
+    /* ---- Joint Responsibilities ---- */
+    content.push(h3('5. Joint Responsibilities'));
+    content.push(para('School/District and #T.E.A.C.H. will ensure new teachers have the support necessary for success and that teachers complete all requirements necessary to receive their full certification/license. Specifically, the parties agree as follows:'));
+    const jr=[
+      ['Residency Experience.','While working as a full-time teacher, candidates will be assigned an Instructional Coach by #T.E.A.C.H. to help them understand the demands of the teaching profession and to provide support and guidance.'],
+      ['Candidate Selection and Enrollment.','School/District will provide registration information on each of its teachers. Before registering, the parties will ensure the teachers meet the qualifications established by the State Department of Education for licensure.'],
+      ['Expedited Pathway.','#T.E.A.C.H. will evaluate each candidate’s educational background, relevant professional learning, and employment experience to waive coursework and other program requirements to expedite the pathway to certification.'],
+      ['Mentoring.','School/District agrees to provide intensive coaching and mentoring support to the teacher. “Intensive” means schools/districts do not provide any less supervision or mentorship to new teachers on Initial Teaching Certificates/Licenses than new teachers on Standard Teaching Certificates. The parties will work together to identify the school-based mentor; the School/District Mentor and #T.E.A.C.H. Instructional Coach will communicate at agreed-upon times regarding candidate progress.'],
+      ['Educator Evaluation.','Teacher candidates will be evaluated by School/District per Michigan Department of Education requirements for new teachers and per School/District policy. School/District will provide #T.E.A.C.H. with copies of Educator Evaluations. The #T.E.A.C.H.-assigned Instructional Coach will conduct spring and fall assessments each year a candidate is enrolled.'],
+      ['Test Preparation.','The parties agree to work cooperatively to assist candidates in preparing for the state required content and/or pedagogy test/exam, including test prep resources (e.g., practice tests, test prep courses) and release time to study prior to examination.'],
+      ['Diverse Settings.','New teachers should work in diverse settings, and School/District will provide all Interim teachers the opportunity to teach in diverse settings during the first three years.'],
+      ['Commitment After Program Completion (Grow Your Own Districts Only).','If a candidate has not completed all requirements before the conclusion of the grant cycle, the parties agree to support the candidate for a mutually agreed-upon time or until the candidate earns a teaching certificate, whichever comes first.'],
+      ['Intent to Enroll.','It is the School/District’s intent to enroll the identified candidates; School/District may adjust this list as necessary in consultation with #T.E.A.C.H.'],
+      ['Progress Reporting.','#T.E.A.C.H. will keep School/District apprised of progress on all candidates paid for by School/District.']
+    ];
+    content.push({ ul: jr.map(x=>({ text:[{text:x[0]+' ',bold:true}, x[1]], margin:[0,0,0,4] })), fontSize:9.5, lineHeight:1.3, margin:[6,0,0,6], color:INK });
+
+    /* ---- Legal Provisions ---- */
+    content.push(band('LEGAL PROVISIONS'));
+    [['Termination.','Either party may terminate this MOU upon no less than sixty (60) days’ prior written notice. The parties agree to make every effort to resolve disputes to mutual satisfaction to allow program continuation and minimize harm to participants. School/District reserves the right to cancel an assignment at any time with or without cause. Upon termination, School/District will, within thirty (30) days, provide final payment for all #T.E.A.C.H. services completed through the effective date of termination.'],
+     ['Indemnification.','#T.E.A.C.H. agrees to indemnify and hold School/District free and harmless from all claims or liability (including court costs and attorney’s fees) arising out of the discharge (or lack thereof) of #T.E.A.C.H.’s duties under this MOU.'],
+     ['Assignment.','Neither party may assign its rights or delegate its duties under this MOU without the prior written consent of the other party.'],
+     ['Governing Law.','This Agreement shall be governed by and construed in accordance with the laws of the State of Michigan.'],
+     ['Entire Agreement.','This MOU constitutes the entire agreement between the parties pertaining to its subject matter and supersedes all prior and contemporaneous agreements, representations, and understandings. No supplement, modification, or amendment shall be binding unless executed in writing by all parties.']
+    ].forEach(x=> content.push({text:[{text:x[0]+' ',bold:true}, x[1]], fontSize:9.5, lineHeight:1.32, margin:[0,0,0,6], color:INK}));
+
+    /* ---- Signatures (kept together, never cut) ---- */
+    const nameLine=(nm)=> authed
+      ? {columns:[{svg:SVG_CHECK(OK),width:12,margin:[0,1,0,0]},{text:nm,bold:true,color:INK,fontSize:10,margin:[4,0,0,0]}], columnGap:0, margin:[0,4,0,0]}
+      : {text:nm,bold:true,color:INK,fontSize:10,margin:[0,4,0,0]};
+
+    const teachSig=[
+      (data.teachSigImage ? {image:data.teachSigImage, width:180, margin:[0,4,0,2]} : {text:'Jessie E. Kilgore, Jr.', italics:true, bold:true, fontSize:22, color:'#10233c', margin:[0,4,0,2]}),
+      {canvas:[{type:'line',x1:0,y1:0,x2:220,y2:0,lineWidth:1,lineColor:'#33465c'}]},
+      nameLine('Jessie E. Kilgore, Jr., PhD'),
+      {text:'President/Founder, TEACH-USA, LLC', fontSize:8.5, color:MUT, margin:[0,1,0,0]},
+      {text:'Date: '+(fmtDate(s.effective_date)||''), fontSize:8.5, color:MUT, margin:[0,1,0,0]}
+    ];
+    if(authed) teachSig.push({text:'Authorized signatory · applied by #TEACH platform', fontSize:8.5, color:OK, margin:[0,2,0,0]});
+
+    const distSigMark = data.signature
+      ? (data.signature.type==='draw'
+          ? {image:data.signature.data, width:180, margin:[0,2,0,2]}
+          : {text:data.signature.text||'', italics:true, bold:true, fontSize:22, color:'#10233c', margin:[0,4,0,2]})
+      : {text:' ', margin:[0,14,0,2]};
+    const distSig=[
+      distSigMark,
+      {canvas:[{type:'line',x1:0,y1:0,x2:220,y2:0,lineWidth:1,lineColor:'#33465c'}]},
+      nameLine(r.signer_name||''),
+      {text:(r.signer_title||'Authorized Signer'), fontSize:8.5, color:MUT, margin:[0,1,0,0]},
+      {text:(r.district_name||''), fontSize:8.5, color:MUT, margin:[0,1,0,0]},
+      {text:'Date: '+((a.signedAt? fmtDate2(a.signedAt) : '')||''), fontSize:8.5, color:MUT, margin:[0,1,0,0]}
+    ];
+    if(authed){
+      distSig.push({text:'Electronically signed by '+(a.signerName||r.signer_name||'')+' '+(a.signedDisplay||fmtStamp(a.signedAt)), fontSize:8.5, color:OK, bold:true, margin:[0,2,0,0]});
+      distSig.push({text:(a.signerEmail||''), fontSize:8.5, color:MUT});
+      distSig.push({text:'IP address: '+(a.ip||'—'), fontSize:8.5, color:MUT});
+    }
+
+    content.push({ stack:[
+      band('SIGNATURES'),
+      para('IN WITNESS WHEREOF, by their signatures below, the parties have caused this Memorandum of Understanding to be executed and effective as of the Effective Date.'),
+      {columns:[
+        {width:'*', stack:[{text:'TEACH-USA, LLC (#T.E.A.C.H.)', bold:true, color:NAVY, fontSize:10, margin:[0,6,0,2]}, ...teachSig]},
+        {width:20, text:''},
+        {width:'*', stack:[{text:'School / District / Partner', bold:true, color:NAVY, fontSize:10, margin:[0,6,0,2]}, ...distSig]}
+      ], columnGap:0, margin:[0,8,0,0]}
+    ], unbreakable:true });
+
+    // Footer line under signatures
+    // Footer line under signatures
+    if(authed){
+      content.push({columns:[{width:'*',text:''},{svg:SVG_LOCK(NAVY),width:11,margin:[0,1,0,0]},
+        {width:'auto',text:'  Electronically Signed & Verified · Powered by the #TEACH Digital Signature Platform',bold:true,color:NAVY,fontSize:8.5,margin:[0,1,0,0]},
+        {width:'*',text:''}], columnGap:0, margin:[0,16,0,0]});
+    } else {
+      content.push({text:'MOU — School/District & #T.E.A.C.H. · Teacher Certification Partnership · 2025–2027', color:MUT, italics:true, fontSize:8.5, alignment:'center', margin:[0,16,0,0]});
+    }
+
+    /* ---- Certificate of Completion (new page) ---- */
+    if(authed){
+      const cband={ table:{widths:[20,'*'], body:[[
+          (modified?{text:'!',bold:true,color:'white',fontSize:14,alignment:'center'}:{svg:SVG_LOCK('#ffffff'),width:15,margin:[0,1,0,0]}),
+          {text:'Certificate of Completion',bold:true,fontSize:13,color:'white',margin:[2,1,0,0]} ]]},
+        layout:{defaultBorder:false, fillColor:()=>NAVY, paddingLeft:()=>10,paddingRight:()=>10,paddingTop:()=>7,paddingBottom:()=>7}, margin:[0,0,0,12] };
+      const meta=(k,v)=>[ {text:k,bold:true,color:NAVY,fillColor:HEADFILL,fontSize:9}, {text:v,fontSize:9,color:INK} ];
+      const certH=(t)=>({text:t,bold:true,color:CRIMSON,fontSize:9,characterSpacing:0.5,margin:[0,12,0,4]});
+      const audit=a.audit||[];
+      content.push({ pageBreak:'before', stack:[
+        cband,
+        { table:{widths:[120,'*'], body:[
+          meta('Document ID', a.documentId||''),
+          meta('Agreement ID', agreementId(a.documentId)),
+          meta('Date Created', fmtStamp(a.createdAt)),
+          meta('Date Completed', a.signedDisplay||fmtStamp(a.signedAt)),
+          [ {text:'Status',bold:true,color:NAVY,fillColor:HEADFILL,fontSize:9}, modified?{text:'Authentication Invalid — modified after completion',color:CRIMSON,bold:true,fontSize:9}:{columns:[{svg:SVG_CHECK(OK),width:10,margin:[0,1,0,0]},{text:' Authenticated & Sealed',color:OK,bold:true,fontSize:9,margin:[2,0,0,0]}],columnGap:0} ]
+        ]}, layout:grid() },
+        certH('SIGNERS'),
+        { table:{widths:['auto','*','auto','auto','auto','auto'], headerRows:1, dontBreakRows:true, body:[
+          [th('Party'),th('Name & Title'),th('Email'),th('Signed'),th('IP'),th('Status')],
+          [ td('#TEACH'), {text:[{text:'Jessie E. Kilgore, Jr., PhD\n',fontSize:8.5},{text:'President/Founder',color:MUT,fontSize:8}]},
+            {text:(a.senderEmail||''),fontSize:8}, {text:fmtDate(s.effective_date)||'',fontSize:8}, {text:'Platform',fontSize:8}, {text:'Authorized',color:OK,fontSize:8,bold:true} ],
+          [ td('District'), {text:[{text:(a.signerName||r.signer_name||'')+'\n',fontSize:8.5},{text:(r.signer_title||'Authorized Signer'),color:MUT,fontSize:8}]},
+            {text:(a.signerEmail||''),fontSize:8}, {text:(a.signedDisplay||fmtStamp(a.signedAt)),fontSize:8}, {text:(a.ip||'—'),fontSize:8},
+            modified?{text:'Unverified',color:CRIMSON,fontSize:8,bold:true}:{text:'Verified',color:OK,fontSize:8,bold:true} ]
+        ]}, layout:grid() },
+        certH('DOCUMENT INTEGRITY'),
+        { table:{widths:['*'], body:[[{text:'SHA-256: '+(a.hash||''), font:'Roboto', fontSize:8, color:INK}]]},
+          layout:{defaultBorder:true,hLineColor:()=>LINE,vLineColor:()=>LINE,hLineWidth:()=>0.7,vLineWidth:()=>0.7,fillColor:()=>'#f5f8fb',paddingLeft:()=>8,paddingRight:()=>8,paddingTop:()=>6,paddingBottom:()=>6}, margin:[0,0,0,6] },
+        {text:['Independently verify this agreement at:\n',{text:(a.verifyUrl||''),color:SKY}], fontSize:8.5, margin:[0,0,0,6]},
+        {text:'This agreement is sealed with the SHA-256 fingerprint above, computed from the executed agreement and all signature data. Any change to the agreement after completion produces a different fingerprint and causes independent verification to fail.', fontSize:8, color:MUT, lineHeight:1.35, margin:[0,0,0,0]},
+        certH('AUDIT TRAIL'),
+        { table:{widths:[150,'*'], headerRows:1, dontBreakRows:true, body:[
+            [th('Timestamp'),th('Activity')],
+            ...audit.map(ev=>[ {text:fmtStamp(ev.at),fontSize:8}, {text:[{text:auditLabel(ev.event),bold:true,fontSize:8.5}, (ev.detail?{text:' — '+ev.detail,fontSize:8.5}:''),
+              (ev.by?{text:'\nby '+ev.by+(ev.email?' ('+ev.email+')':'')+(ev.ip?' · IP '+ev.ip:''),color:MUT,fontSize:8}:''),
+              (ev.to?{text:'\nto '+ev.to,color:MUT,fontSize:8}:'') ]} ])
+          ]}, layout:grid() },
+        {columns:[{width:'*',text:''},{svg:SVG_LOCK(NAVY),width:11,margin:[0,1,0,0]},
+          {width:'auto',text:'  Electronically Signed & Verified · Powered by the #TEACH Digital Signature Platform',bold:true,color:NAVY,fontSize:8.5,margin:[0,1,0,0]},
+          {width:'*',text:''}], columnGap:0, margin:[0,16,0,0]}
+      ]});
+    }
+
+    return {
+      pageSize:'LETTER',
+      pageMargins:[54,50,54,50],
+      defaultStyle:{font:'Roboto', fontSize:9.5, color:INK},
+      info:{title:'TEACH MOU'+(authed?' (Signed)':''), author:'TEACH-USA, LLC'},
+      content
+    };
+  }
+function fmtDate2(iso){ if(!iso)return ''; const d=new Date(iso); return isNaN(d)?'':d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}); }
+
+/* Render a typed signature as a cursive PNG (Dancing Script) so it looks handwritten in the PDF */
+function typedSigToImage(text){
+  try{
+    text=String(text||'').trim(); if(!text) return null;
+    var scale=3, fontPx=64, pad=10;
+    var meas=document.createElement('canvas').getContext('2d');
+    meas.font='700 '+fontPx+'px "Dancing Script", cursive';
+    var w=Math.ceil(meas.measureText(text).width)+pad*2, h=Math.ceil(fontPx*1.5);
+    var c=document.createElement('canvas'); c.width=w*scale; c.height=h*scale;
+    var ctx=c.getContext('2d'); ctx.scale(scale,scale);
+    ctx.font='700 '+fontPx+'px "Dancing Script", cursive';
+    ctx.fillStyle='#10233c'; ctx.textBaseline='middle'; ctx.textAlign='left';
+    ctx.fillText(text, pad, h/2);
+    return c.toDataURL('image/png');
+  }catch(e){ return null; }
+}
+
 function overlay(on,msg){ document.getElementById('overlay').classList.toggle('show',on); if(msg) document.getElementById('overlayMsg').textContent=msg; }
 function pill(txt,color){ const p=document.getElementById('statusPill'); p.textContent=txt; if(color) p.style.background=color; }
 
@@ -750,7 +1022,6 @@ async function submitSignature(){
   if(!STATE.recipient.signer_name){ return showMsg(msg,'err','Please enter the authorized signer’s printed name.'); }
   if(!STATE.signature){ return showMsg(msg,'err','Please provide your signature.'); }
 
-  let holder;
   try{
     overlay(true,'Authenticating signature…');
 
@@ -786,26 +1057,20 @@ async function submitSignature(){
       createdAt: STATE.meta.createdAt, audit
     };
 
-    // 4) Render the AUTHENTICATED document (ribbon + signature details + certificate) for the PDF
+    // 4) Build the AUTHENTICATED PDF with pdfmake (real vector layout engine — deterministic pagination)
     overlay(true,'Generating your signed PDF…');
-    const signedHtml = renderMOU({sender:STATE.sender, recipient:STATE.recipient, signature:STATE.signature, meta:STATE.meta, auth});
-    holder = document.createElement('div');
-    holder.style.cssText='position:fixed;left:-9999px;top:0;background:#fff';
-    holder.innerHTML = signedHtml;
-    holder.querySelectorAll('.blank').forEach(b=> b.outerHTML = '<span style="border-bottom:1px solid #333;">&nbsp;&nbsp;&nbsp;&nbsp;</span>');
-    document.body.appendChild(holder);
-    const paper = holder.querySelector('#mouPaper');
-
-    const uri = await html2pdf().set({
-      margin:[9,10,9,10],
-      filename:'TEACH-MOU-signed.pdf',
-      image:{type:'jpeg',quality:0.96},
-      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
-      jsPDF:{unit:'mm',format:'letter',orientation:'portrait'},
-      pagebreak:{mode:['css','legacy'], before:'.pb', avoid:['tr','.partybox','.sigblock','table']}
-    }).from(paper).outputPdf('datauristring');
-    document.body.removeChild(holder); holder=null;
-    const base64 = uri.split(',')[1];
+    let sigForPdf;
+    if(STATE.signature.type==='draw'){
+      sigForPdf = {type:'draw', data:STATE.signature.data};
+    } else {
+      let img=null;
+      try{ if(document.fonts&&document.fonts.ready){ await document.fonts.ready; } img = typedSigToImage(STATE.signature.text||STATE.recipient.signer_name); }catch(_){}
+      sigForPdf = img ? {type:'draw', data:img} : {type:'type', text:(STATE.signature.text||STATE.recipient.signer_name)};
+    }
+    const docDef = buildMouDocDef({sender:STATE.sender, recipient:STATE.recipient, signature:sigForPdf, auth, teachSigImage: typedSigToImage('Jessie E. Kilgore, Jr.')});
+    const base64 = await new Promise((resolve,reject)=>{
+      try{ pdfMake.createPdf(docDef).getBase64(resolve); }catch(err){ reject(err); }
+    });
 
     // 5) Finalize on the server
     overlay(true,'Sealing & emailing signed copies…');
@@ -833,7 +1098,7 @@ async function submitSignature(){
         ${j.warnings&&j.warnings.length? '<br><span style="color:var(--warn)">Note: '+esc(j.warnings.join('; '))+'</span>':''}</p>
         <p style="margin-top:14px"><a href="${esc(verifyUrl)}">Verify this document →</a></p>
       </div></div>`;
-  }catch(e){ overlay(false); try{ if(holder) document.body.removeChild(holder); }catch(_){}; showMsg(msg,'err','Error: '+e.message); }
+  }catch(e){ overlay(false); showMsg(msg,'err','Error: '+e.message); }
 }
 
 /* ---------------------------------------------------------------------
