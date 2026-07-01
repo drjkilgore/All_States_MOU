@@ -21,6 +21,27 @@
   .topbar .tag{color:var(--sky);font-size:12px;font-weight:600}
   .topbar .spacer{flex:1}
   .pill{font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.12);color:#fff}
+  .help-btn{font:inherit;font-size:12.5px;font-weight:600;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:6px 14px;cursor:pointer;margin-right:10px}
+  .help-btn:hover{background:rgba(255,255,255,.24)}
+  /* Help modal */
+  .help-modal{position:fixed;inset:0;background:rgba(8,18,33,.55);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:40px 16px;overflow-y:auto}
+  .help-modal.show{display:flex}
+  .help-card{background:#fff;border-radius:16px;max-width:640px;width:100%;box-shadow:0 20px 60px rgba(8,18,33,.35);}
+  .help-card .hh{background:var(--navy);color:#fff;padding:20px 26px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:10px}
+  .help-card .hh h2{margin:0;font-size:18px;font-weight:800}
+  .help-card .hh .x{margin-left:auto;background:rgba(255,255,255,.16);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;line-height:1}
+  .help-card .hb{padding:8px 26px 26px}
+  .help-step{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)}
+  .help-step:last-child{border-bottom:none}
+  .help-num{flex:none;width:28px;height:28px;border-radius:50%;background:var(--crimson);color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;margin-top:2px}
+  .help-step h4{margin:0 0 4px;font-size:14.5px;color:var(--navy)}
+  .help-step p{margin:0;font-size:13px;color:#4a5c72;line-height:1.5}
+  .help-role{margin:20px 0 6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--crimson)}
+  .help-role:first-child{margin-top:6px}
+  .help-tips{background:#f2f7fb;border:1px solid #d7e6f2;border-radius:10px;padding:14px 16px;margin-top:18px}
+  .help-tips h4{margin:0 0 8px;font-size:13px;color:var(--navy)}
+  .help-tips ul{margin:0;padding-left:18px}
+  .help-tips li{font-size:12.5px;color:#4a5c72;margin-bottom:6px;line-height:1.45}
   .wrap{max-width:1220px;margin:0 auto;padding:22px;}
   .grid{display:grid;grid-template-columns:minmax(360px,440px) 1fr;gap:22px;align-items:start;}
   @media(max-width:940px){.grid{grid-template-columns:1fr}}
@@ -64,6 +85,9 @@
   .paper .kicker{text-align:center;font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin:0 0 20px}
   .paper h2{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--navy);padding:6px 12px;border-radius:5px;margin:22px 0 12px}
   .paper h3{font-size:13.5px;color:var(--navy);margin:16px 0 6px}
+  /* Keep headings, rows, and blocks from being sliced across a page break in the PDF */
+  .paper h2,.paper h3{break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}
+  .paper tr,.paper li,.partybox,.sigblock{break-inside:avoid;page-break-inside:avoid}
   .paper p{margin:0 0 10px}
   .paper ul{margin:0 0 10px;padding-left:20px}
   .paper li{margin:0 0 5px}
@@ -94,6 +118,7 @@
   <div class="logo">#TEACH</div>
   <div class="tag">MOU e-Sign</div>
   <div class="spacer"></div>
+  <button class="help-btn" id="helpBtn" type="button">How to use</button>
   <div class="pill" id="statusPill">Loading…</div>
 </div>
 
@@ -102,6 +127,53 @@
 </div>
 
 <div class="overlay" id="overlay"><div class="box"><div class="spin"></div><div id="overlayMsg">Working…</div></div></div>
+
+<div class="help-modal" id="helpModal">
+  <div class="help-card">
+    <div class="hh">
+      <h2>How to use the MOU e-Sign app</h2>
+      <button class="x" id="helpClose" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="hb">
+      <div class="help-role">Part 1 — #TEACH staff: prepare &amp; send</div>
+      <div class="help-step"><div class="help-num">1</div><div>
+        <h4>Fill in the program details</h4>
+        <p>Enter the <strong>State</strong> and <strong>Effective date</strong>, then the five figures in the <strong>Pricing schedule</strong>. The document preview on the right updates live as you type.</p></div></div>
+      <div class="help-step"><div class="help-num">2</div><div>
+        <h4>Add who it goes to</h4>
+        <p>Under <strong>Send to district</strong>, put your name and email (you’ll receive the signed copy), then the district recipient’s name and email. If your site uses a staff access code, enter it here.</p></div></div>
+      <div class="help-step"><div class="help-num">3</div><div>
+        <h4>Send for signature</h4>
+        <p>Click <strong>Send for Signature</strong>. The district is emailed a private signing link, and you get a confirmation email with a link to track status. Your #TEACH President/Founder signature is already applied — you don’t sign again.</p></div></div>
+
+      <div class="help-role">Part 2 — The district: review &amp; sign</div>
+      <div class="help-step"><div class="help-num">4</div><div>
+        <h4>Open the emailed link</h4>
+        <p>The district clicks <strong>Review &amp; Sign the MOU</strong> in their email. The program details you set appear as read-only; they can’t change them.</p></div></div>
+      <div class="help-step"><div class="help-num">5</div><div>
+        <h4>Complete district info &amp; sign</h4>
+        <p>They fill in the district name, address, and signer name/title, then <strong>draw or type</strong> a signature and check the consent box.</p></div></div>
+      <div class="help-step"><div class="help-num">6</div><div>
+        <h4>Done — everyone gets a copy</h4>
+        <p>On <strong>Sign &amp; Send Signed Copy</strong>, a fully executed PDF is emailed automatically to both the district and #TEACH, and the record is saved.</p></div></div>
+
+      <div class="help-role">Checking status</div>
+      <div class="help-step"><div class="help-num">✓</div><div>
+        <h4>Track any agreement</h4>
+        <p>Use the status link in your confirmation email to see whether the district has signed yet.</p></div></div>
+
+      <div class="help-tips">
+        <h4>Good to know</h4>
+        <ul>
+          <li>The <strong>Send</strong> button needs both your email and the district’s email before it will submit.</li>
+          <li>Signing links are private but not password-protected — anyone with the link can sign, so send to the correct address.</li>
+          <li>An MOU can only be signed once; after that the link shows “already signed.”</li>
+          <li>To prepare another agreement, finish the current one and click <strong>Prepare another MOU</strong>.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 /* =====================================================================
@@ -137,6 +209,17 @@ const RECIPIENT_FIELDS = [
 ];
 
 let STATE = { sender:{}, recipient:{}, signature:null, meta:{} };
+
+/* ---- Help modal wiring (available in every view) ---- */
+(function(){
+  const modal=document.getElementById('helpModal');
+  const open=()=>modal.classList.add('show');
+  const close=()=>modal.classList.remove('show');
+  document.getElementById('helpBtn').addEventListener('click',open);
+  document.getElementById('helpClose').addEventListener('click',close);
+  modal.addEventListener('click',e=>{ if(e.target===modal) close(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') close(); });
+})();
 
 /* ---- helpers ---- */
 const el = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.childElementCount>1 ? t.content : t.content.firstElementChild;};
@@ -259,7 +342,7 @@ function renderMOU(o){
     <h2>Signatures</h2>
     <p>IN WITNESS WHEREOF, by their signatures below, the parties have caused this Memorandum of Understanding to be executed and effective as of the Effective Date.</p>
 
-    <div style="display:flex;gap:26px;flex-wrap:wrap;margin-top:10px">
+    <div class="sigblock" style="display:flex;gap:26px;flex-wrap:wrap;margin-top:10px">
       <div style="flex:1;min-width:240px">
         <div style="font-weight:700;color:var(--navy);margin-bottom:26px">TEACH-USA, LLC (#T.E.A.C.H.)</div>
         <div class="sigtyped" style="font-size:26px">Jessie E. Kilgore, Jr.</div>
@@ -465,7 +548,7 @@ function submitSignature(){
     image:{type:'jpeg',quality:0.96},
     html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
     jsPDF:{unit:'mm',format:'letter',orientation:'portrait'},
-    pagebreak:{mode:['css','legacy']}
+    pagebreak:{mode:['css','legacy'], avoid:['h2','h3','tr','.partybox','.sigblock']}
   }).from(paper).outputPdf('datauristring').then(uri=>{
     document.body.removeChild(holder);
     const base64 = uri.split(',')[1];
