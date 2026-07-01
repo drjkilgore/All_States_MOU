@@ -6,8 +6,8 @@
 <title>#TEACH MOU e-Sign</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/pdfmake.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/vfs_fonts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.20/build/pdfmake.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.20/build/vfs_fonts.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
@@ -1059,6 +1059,9 @@ async function submitSignature(){
 
     // 4) Build the AUTHENTICATED PDF with pdfmake (real vector layout engine — deterministic pagination)
     overlay(true,'Generating your signed PDF…');
+    if(typeof pdfMake==='undefined' || !pdfMake.createPdf){
+      throw new Error('The PDF library did not load. Please check your connection, refresh the page, and try signing again.');
+    }
     let sigForPdf;
     if(STATE.signature.type==='draw'){
       sigForPdf = {type:'draw', data:STATE.signature.data};
