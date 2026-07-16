@@ -330,7 +330,7 @@ function agreementId(id){ return 'TEACH-'+String(id||'').replace(/-/g,'').slice(
 // signing time and verification time so the integrity hash matches.
 function canonicalSigned(src){
   const s=src.senderFields||{}, r=src.recipientFields||{};
-  return [
+  const lines = [
     'id='+(src.id||''),
     'state='+(s.state||''),
     'effective_date='+(s.effective_date||''),
@@ -346,7 +346,12 @@ function canonicalSigned(src){
     'signer_email='+(src.signerEmail||''),
     'signed_at='+(src.signedAt||''),
     'signed_ip='+(src.signedIp||'')
-  ].join('\n');
+  ];
+  // Seal any negotiated Addendum A text into the fingerprint. Included ONLY when
+  // present, so MOUs signed before this feature (no addendum) keep their exact
+  // original canonical string and continue to verify as authentic.
+  if(s.addendum && String(s.addendum).trim()) lines.push('addendum='+s.addendum);
+  return lines.join('\n');
 }
 async function sha256hex(str){
   if(!(window.crypto && crypto.subtle)) return 'unavailable';
@@ -502,6 +507,20 @@ function buildMouDocDef(data){
      ['Entire Agreement.','This MOU constitutes the entire agreement between the parties pertaining to its subject matter and supersedes all prior and contemporaneous agreements, representations, and understandings. No supplement, modification, or amendment shall be binding unless executed in writing by all parties.']
     ].forEach(x=> content.push({text:[{text:x[0]+' ',bold:true}, x[1]], fontSize:9.5, lineHeight:1.32, margin:[0,0,0,6], color:INK}));
 
+    /* ---- Addendum A — Negotiated Terms (only when the sender entered any) ---- */
+    { const addTxt=(s.addendum||'').trim();
+      if(addTxt){
+        content.push(band('ADDENDUM A — NEGOTIATED TERMS'));
+        content.push({text:'The following terms were negotiated with the School/District and expressly supersede any conflicting provision in the standard sections above. This Addendum is incorporated into and made a part of this MOU.', italics:true, fontSize:9, lineHeight:1.3, color:MUT, margin:[0,0,0,7]});
+        const blocks=addTxt.split(/\n{2,}/);
+        content.push({
+          table:{widths:['*'], body:[[{ stack: blocks.map((p,i)=>({text:p, fontSize:9.5, lineHeight:1.32, color:INK, margin:[0,0,0, i===blocks.length-1?0:6]})) }]]},
+          layout:{ hLineWidth:()=>0.8, vLineWidth:(i)=> i===0?3:0.8, hLineColor:()=>LINE, vLineColor:(i)=> i===0?CRIMSON:LINE, paddingLeft:()=>11,paddingRight:()=>11,paddingTop:()=>9,paddingBottom:()=>9 },
+          margin:[0,0,0,4]
+        });
+      }
+    }
+
     /* ---- Signatures (kept together, never cut) ---- */
     const nameLine=(nm)=> authed
       ? {columns:[{svg:SVG_CHECK(OK),width:12,margin:[0,1,0,0]},{text:nm,bold:true,color:INK,fontSize:10,margin:[4,0,0,0]}], columnGap:0, margin:[0,4,0,0]}
@@ -652,6 +671,15 @@ function renderMOU(o){
           : `<div class="sigtyped">${esc(o.signature.text)}</div>`)
       : `<div style="height:44px"></div>`;
 
+  const addTxt = (s.addendum||'').trim();
+  const addendumBlock = addTxt ? `
+    <div class="pb"></div>
+    <h2>Addendum A — Negotiated Terms</h2>
+    <p style="margin-top:-2px"><em>The following terms were negotiated with the School/District and expressly supersede any conflicting provision in the standard sections above. This Addendum is incorporated into and made a part of this MOU.</em></p>
+    <div style="border:1px solid #cdd6e2;border-left:4px solid var(--crimson);border-radius:8px;padding:12px 16px;background:#fbf7f7">
+      ${addTxt.split(/\n{2,}/).map(p=>`<p style="margin:0 0 10px">${esc(p).replace(/\n/g,'<br>')}</p>`).join('')}
+    </div>` : '';
+
   const ribbon = authed ? `<div class="authbar${modified?' bad':''}">
       <span class="lock">${modified?'⚠':'🔒'}</span>
       <div>${modified
@@ -755,7 +783,7 @@ function renderMOU(o){
     <p><strong>Assignment.</strong> Neither party may assign its rights or delegate its duties under this MOU without the prior written consent of the other party.</p>
     <p><strong>Governing Law.</strong> This Agreement shall be governed by and construed in accordance with the laws of the State of Michigan.</p>
     <p><strong>Entire Agreement.</strong> This MOU constitutes the entire agreement between the parties pertaining to its subject matter and supersedes all prior and contemporaneous agreements, representations, and understandings. No supplement, modification, or amendment shall be binding unless executed in writing by all parties.</p>
-
+    ${addendumBlock}
     <div class="pb"></div>
     <h2>Signatures</h2>
     <p>IN WITNESS WHEREOF, by their signatures below, the parties have caused this Memorandum of Understanding to be executed and effective as of the Effective Date.</p>
@@ -878,6 +906,16 @@ function initSender(){
     <div id="fdDistrict"></div></fieldset>`));
   const fdD = form.querySelector('#fdDistrict');
   SENDER_DISTRICT_FIELDS.forEach(f=> fdD.appendChild(makeField(f,'recipient')));
+
+  // Addendum / negotiated terms — sender-controlled, entered AFTER agreeing counsel
+  // redlines and BEFORE sending. Locked to the district (they can only sign).
+  form.appendChild(el(`
+    <fieldset><legend>Addendum &amp; negotiated terms <span style="color:#64748b;font-weight:600;text-transform:none;letter-spacing:0">(optional)</span></legend>
+      <p class="hint" style="margin:0 0 12px">For districts whose legal counsel requires changes. Enter the agreed-upon language here <strong>before sending</strong>. It renders in the agreement as <strong>Addendum A — Negotiated Terms</strong>, which expressly supersedes any conflicting standard clause, and is sealed into the signature fingerprint. The district cannot edit it — they can only sign. Leave blank for the standard MOU. Separate multiple provisions with a blank line.</p>
+      <div class="field"><label>Negotiated terms / redlines</label><textarea id="addendumText" rows="6" placeholder="Governing Law. Notwithstanding the Legal Provisions above, this Agreement shall be governed by the laws of the State of Indiana.&#10;&#10;Indemnification. This section is amended to be mutual: each party shall indemnify the other for claims arising from its own negligent acts or omissions."></textarea></div>
+    </fieldset>`));
+  const addText = document.getElementById('addendumText');
+  if(addText){ addText.value = STATE.sender.addendum || ''; addText.addEventListener('input',()=>{ STATE.sender.addendum = addText.value; refreshPreview(); }); }
 
   form.appendChild(el(`
     <fieldset><legend>Send to district</legend>
@@ -1003,6 +1041,9 @@ function renderRecipientForm(j){
   const line=(lbl,v)=> summary.appendChild(el(`<div class="field"><label>${lbl}</label><input readonly value="${esc(v||'—')}"></div>`));
   line('State', s.state);
   line('Effective date', fmtDate(s.effective_date));
+  if((s.addendum||'').trim()){
+    summary.appendChild(el(`<div class="field"><label>Negotiated terms</label><input readonly value="Includes Addendum A — see the agreement at right"></div>`));
+  }
 
   // District fields
   const fd = app.querySelector('#fdRecip');
